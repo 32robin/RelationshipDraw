@@ -3,39 +3,43 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>관계표 그리기 사이트(충북대 김병수 제작)</title>
+    <title>관계표 그리기 사이트 Academic Pro (충북대 김병수 제작)</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.26.0/cytoscape.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
     <style>
-        body, html { height: 100vh; width: 100vw; margin: 0; padding: 0; overflow: hidden; background-color: #f1f5f9; font-family: sans-serif; }
+        body, html { height: 100vh; width: 100vw; margin: 0; padding: 0; overflow: hidden; background-color: #f8fafc; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; }
         #cy { width: 100%; height: 100%; background-color: #ffffff; }
-        .sidebar { z-index: 10; box-shadow: 2px 0 10px rgba(0,0,0,0.1); }
+        .sidebar { z-index: 10; box-shadow: 2px 0 10px rgba(0,0,0,0.05); }
     </style>
 </head>
 <body class="flex flex-col h-screen">
 
-    <header class="bg-white border-b-2 border-slate-200 px-8 py-5 flex justify-between items-center z-20 shadow-sm">
+    <header class="bg-white border-b-2 border-slate-200 px-8 py-4 flex justify-between items-center z-20 shadow-sm">
         <div>
-            <h1 class="text-3xl font-black text-slate-800 tracking-tight">관계표 그리기 사이트</h1>
-            <p class="text-blue-600 font-bold text-sm">(충북대 심리학과 김병수 제작)</p>
+            <h1 class="text-3xl font-black text-slate-800 tracking-tight">Vibe Mapper <span class="text-blue-600 text-2xl font-bold">Academic Pro v5.0</span></h1>
+            <p class="text-slate-600 font-bold text-sm">(충북대 심리학과 김병수 제작)</p>
         </div>
-        <button onclick="saveImage()" class="bg-slate-800 text-white px-6 py-2.5 rounded-lg font-bold hover:bg-black transition-all shadow-md">이미지 저장</button>
+        <div class="flex gap-2">
+            <button onclick="saveJPG()" class="bg-slate-200 text-slate-800 px-6 py-2 rounded-lg font-bold hover:bg-slate-300 transition-all text-sm">JPG로 임시 저장</button>
+            <button onclick="saveSVG()" class="bg-slate-800 text-white px-6 py-2 rounded-lg font-bold hover:bg-black transition-all shadow-md text-sm">SVG로 논문 투고용 저장</button>
+        </div>
     </header>
 
     <div class="flex flex-1 overflow-hidden">
         <aside class="w-80 bg-slate-900 p-6 flex flex-col sidebar">
-            <h3 class="text-blue-400 font-bold mb-3 underline italic uppercase text-xs tracking-widest">입력페이지</h3>
-            <textarea id="inputArea" class="flex-1 bg-slate-800 text-white p-4 font-mono text-base border border-slate-700 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none resize-none leading-relaxed">독립변인 > 매개변인&#10;매개변인 > 종속변인&#10;독립변인 > 종속변인</textarea>
-            <div class="mt-4 p-3 bg-slate-800/50 rounded-lg text-[11px] text-slate-400 leading-tight">
-                <span class="text-blue-400 font-bold">></span> : 화살표 연결 (인과)<br/>
-                <span class="text-slate-300 font-bold">-</span> : 실선 연결 (상관)<br/>
-                * 오른쪽 결과창에서 도형을 마우스로 자유롭게 드래그하세요!
+            <h3 class="text-blue-400 font-bold mb-3 underline italic uppercase text-xs tracking-widest">연구 모델 입력</h3>
+            <textarea id="inputArea" class="flex-1 bg-slate-800 text-white p-5 font-mono text-lg border border-slate-700 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none resize-none leading-relaxed">독립변인 > 매개변인&#10;매개변인 > 종속변인&#10;독립변인 ..> 종속변인&#10;외생변인1 - 매개변인&#10;외생변인2 .- 독립변인</textarea>
+            <div class="mt-4 p-3.5 bg-slate-800/50 rounded-xl text-xs text-slate-300 leading-tight space-y-1.5 border border-slate-700">
+                <p><span class="text-blue-400 font-bold font-mono">X > Y</span> : 실선 화살표 (유의미 인과)</p>
+                <p><span class="text-blue-400 font-bold font-mono">X ..> Y</span> : 점선 화살표 (무의미 인과)</p>
+                <p><span class="text-slate-200 font-bold font-mono">X - Y</span> : 실선 (유의미 상관)</p>
+                <p><span class="text-slate-200 font-bold font-mono">X .- Y</span> : 점선 (무의미 상관)</p>
+                <p class="text-yellow-400 italic pt-1">* 오른쪽 캔버스에서 도형을 마우스로 직접 배치하세요!</p>
             </div>
         </aside>
 
-        <main class="flex-1 relative">
-            <div class="absolute top-4 left-6 z-10 text-[10px] font-black text-slate-300 uppercase tracking-widest pointer-events-none">결과페이지 (마우스 드래그 가능)</div>
+        <main class="flex-1 relative bg-white">
+            <div class="absolute top-4 left-6 z-10 text-[10px] font-black text-slate-300 uppercase tracking-widest pointer-events-none">캔버스 (마우스 드래그)</div>
             <div id="cy"></div>
         </main>
     </div>
@@ -51,28 +55,32 @@
             const nodeSet = new Set();
 
             lines.forEach((line, i) => {
-                const parts = line.split(/[>-]/);
-                if (parts.length >= 2) {
-                    const fromName = parts[0].trim();
-                    const toName = parts[1].trim();
-                    const isArrow = line.includes('>');
+                let fromName, toName, type, style;
 
-                    [fromName, toName].forEach(name => {
-                        if (!nodeSet.has(name)) {
-                            nodeSet.add(name);
-                            elements.push({ data: { id: name, label: name } });
-                        }
-                    });
+                if (line.includes('..>')) {
+                    [fromName, toName] = line.split('..>').map(s => s.trim());
+                    type = 'triangle'; style = 'dashed';
+                } else if (line.includes('>')) {
+                    [fromName, toName] = line.split('>').map(s => s.trim());
+                    type = 'triangle'; style = 'solid';
+                } else if (line.includes('.-')) {
+                    [fromName, toName] = line.split('.-').map(s => s.trim());
+                    type = 'none'; style = 'dashed';
+                } else if (line.includes('-')) {
+                    [fromName, toName] = line.split('-').map(s => s.trim());
+                    type = 'none'; style = 'solid';
+                } else { return; }
 
-                    elements.push({
-                        data: {
-                            id: `e${i}`,
-                            source: fromName,
-                            target: toName,
-                            type: isArrow ? 'triangle' : 'none'
-                        }
-                    });
-                }
+                [fromName, toName].forEach(name => {
+                    if (!nodeSet.has(name)) {
+                        nodeSet.add(name);
+                        elements.push({ data: { id: name, label: name } });
+                    }
+                });
+
+                elements.push({
+                    data: { id: `e${i}`, source: fromName, target: toName, type: type, style: style }
+                });
             });
 
             // Cytoscape 초기화 및 업데이트
@@ -88,52 +96,69 @@
                                 'label': 'data(label)',
                                 'text-valign': 'center',
                                 'text-halign': 'center',
-                                'width': '120px',
-                                'height': '50px',
-                                'shape': 'round-rectangle',
-                                'border-width': 2,
-                                'border-color': '#1e293b',
+                                'width': '140px',
+                                'height': '60px',
+                                'shape': 'rectangle',
+                                'border-width': 1.5, // 얇고 정밀하게
+                                'border-color': '#000000',
                                 'font-weight': 'bold',
-                                'font-size': '16px'
+                                'font-size': '15px',
+                                'font-family': 'sans-serif',
+                                'text-wrap': 'wrap', // 긴 이름 줄바꿈
+                                'text-max-width': '120px'
                             }
                         },
                         {
                             selector: 'edge',
                             style: {
-                                'width': 3,
-                                'line-color': '#334155',
-                                'target-arrow-color': '#334155',
+                                'width': 1.5, // 얇고 정밀하게
+                                'line-color': '#000000',
+                                'target-arrow-color': '#000000',
                                 'target-arrow-shape': 'data(type)',
-                                'curve-style': 'bezier'
+                                'line-style': 'data(style)', // 점선/실선 적용
+                                'curve-style': 'bezier',
+                                'target-arrow-fill': 'filled' // 화살표 채움
                             }
+                        },
+                        {
+                            selector: ':active', // UX 향상: 드래그 중인 노드 강조
+                            style: { 'border-color': '#2563eb', 'border-width': 2.5 }
                         }
                     ],
                     layout: { name: 'grid', padding: 100 }
                 });
             } else {
-                // 기존 위치를 유지하면서 데이터만 갱신
                 const currentPositions = {};
                 cy.nodes().forEach(n => { currentPositions[n.id()] = n.position(); });
-                
                 cy.json({ elements });
-                
                 cy.nodes().forEach(n => {
                     if (currentPositions[n.id()]) n.position(currentPositions[n.id()]);
                 });
-                
-                cy.layout({ name: 'cola', animate: false, fit: true }).run(); // 가벼운 정렬
+                cy.layout({ name: 'cola', animate: false, fit: false, refresh: 0.1, gravity: -50 }).run(); 
             }
         }
 
         // 입력창 변경 시 실시간 반영
         document.getElementById('inputArea').addEventListener('input', renderChart);
 
-        // 이미지 저장 함수
-        async function saveImage() {
+        // 이미지 저장 (JPG)
+        function saveJPG() {
             const a = document.createElement('a');
-            a.download = 'research_model.jpg';
-            a.href = cy.jpg({ full: true, quality: 0.9, bg: '#ffffff' });
+            a.download = `research_model_${Date.now()}.jpg`;
+            a.href = cy.jpg({ full: true, quality: 1, bg: '#ffffff' });
             a.click();
+        }
+
+        // 벡터 저장 (SVG) - 논문 투고용 핵심 기능
+        function saveSVG() {
+            const svgContent = cy.svg({ full: true, bg: '#ffffff' });
+            const blob = new Blob([svgContent], { type: 'image/svg+xml;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.download = `research_model_${Date.now()}.svg`;
+            a.href = url;
+            a.click();
+            URL.revokeObjectURL(url);
         }
 
         // 초기 실행
