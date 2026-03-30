@@ -3,51 +3,112 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>관계표 그리기 사이트 Academic Pro (충북대 김병수 제작)</title>
+    <title>관계표 그리기 사이트 v6.0 (충북대 김병수 제작)</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.26.0/cytoscape.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body, html { height: 100vh; width: 100vw; margin: 0; padding: 0; overflow: hidden; background-color: #f8fafc; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; }
-        #cy { width: 100%; height: 100%; background-color: #ffffff; }
-        .sidebar { z-index: 10; box-shadow: 2px 0 10px rgba(0,0,0,0.05); }
+        body, html { height: 100vh; width: 100vw; margin: 0; padding: 0; overflow: hidden; background-color: #ffffff; font-family: 'Pretendard', sans-serif; }
+        
+        /* 1. 결과창 그리드 배경 (Snap-to-Grid 보조) */
+        #cy { 
+            width: 100%; 
+            height: 100%; 
+            background-color: #ffffff;
+            background-image: radial-gradient(#cbd5e1 1px, transparent 1px);
+            background-size: 20px 20px; /* 20px 간격 도트 */
+        }
+
+        .sidebar { border-right: 1px solid #e2e8f0; z-index: 10; }
+        
+        /* 2. 토스트 알림 스타일 */
+        #toast {
+            visibility: hidden;
+            min-width: 250px;
+            background-color: #1e293b;
+            color: #fff;
+            text-align: center;
+            border-radius: 8px;
+            padding: 16px;
+            position: fixed;
+            z-index: 100;
+            left: 50%;
+            bottom: 30px;
+            transform: translateX(-50%);
+            font-size: 14px;
+            font-weight: 600;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+        #toast.show { visibility: visible; animation: fadein 0.5s, fadeout 0.5s 2.5s; }
+
+        @keyframes fadein { from { bottom: 0; opacity: 0; } to { bottom: 30px; opacity: 1; } }
+        @keyframes fadeout { from { bottom: 30px; opacity: 1; } to { bottom: 0; opacity: 0; } }
     </style>
 </head>
-<body class="flex flex-col h-screen">
+<body class="flex flex-col h-screen overflow-hidden">
 
-    <header class="bg-white border-b-2 border-slate-200 px-8 py-4 flex justify-between items-center z-20 shadow-sm">
+    <header class="bg-white border-b px-8 py-4 flex justify-between items-center z-20">
         <div>
-            <h1 class="text-3xl font-black text-slate-800 tracking-tight">Vibe Mapper <span class="text-blue-600 text-2xl font-bold">Academic Pro v5.0</span></h1>
-            <p class="text-slate-600 font-bold text-sm">(충북대 심리학과 김병수 제작)</p>
+            <h1 class="text-2xl font-black text-slate-800 tracking-tight leading-none">Vibe Mapper <span class="text-blue-600">v6.0</span></h1>
+            <p class="text-slate-400 font-bold text-[11px] uppercase tracking-widest mt-1">Chungbuk Nat'l Univ. | Researcher Edition</p>
         </div>
-        <div class="flex gap-2">
-            <button onclick="saveJPG()" class="bg-slate-200 text-slate-800 px-6 py-2 rounded-lg font-bold hover:bg-slate-300 transition-all text-sm">JPG로 임시 저장</button>
-            <button onclick="saveSVG()" class="bg-slate-800 text-white px-6 py-2 rounded-lg font-bold hover:bg-black transition-all shadow-md text-sm">SVG로 논문 투고용 저장</button>
+        <div class="flex items-center gap-4">
+            <span class="text-xs text-slate-400 font-medium mr-2 italic">※ 모든 결과물은 APA 가이드라인에 최적화되어 출력됩니다.</span>
+            <button onclick="saveJPG()" class="bg-blue-600 text-white px-6 py-2.5 rounded-lg font-bold hover:bg-blue-700 transition-all shadow-sm text-sm active:scale-95">이미지 저장 (JPG)</button>
         </div>
     </header>
 
     <div class="flex flex-1 overflow-hidden">
-        <aside class="w-80 bg-slate-900 p-6 flex flex-col sidebar">
-            <h3 class="text-blue-400 font-bold mb-3 underline italic uppercase text-xs tracking-widest">연구 모델 입력</h3>
-            <textarea id="inputArea" class="flex-1 bg-slate-800 text-white p-5 font-mono text-lg border border-slate-700 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none resize-none leading-relaxed">독립변인 > 매개변인&#10;매개변인 > 종속변인&#10;독립변인 ..> 종속변인&#10;외생변인1 - 매개변인&#10;외생변인2 .- 독립변인</textarea>
-            <div class="mt-4 p-3.5 bg-slate-800/50 rounded-xl text-xs text-slate-300 leading-tight space-y-1.5 border border-slate-700">
-                <p><span class="text-blue-400 font-bold font-mono">X > Y</span> : 실선 화살표 (유의미 인과)</p>
-                <p><span class="text-blue-400 font-bold font-mono">X ..> Y</span> : 점선 화살표 (무의미 인과)</p>
-                <p><span class="text-slate-200 font-bold font-mono">X - Y</span> : 실선 (유의미 상관)</p>
-                <p><span class="text-slate-200 font-bold font-mono">X .- Y</span> : 점선 (무의미 상관)</p>
-                <p class="text-yellow-400 italic pt-1">* 오른쪽 캔버스에서 도형을 마우스로 직접 배치하세요!</p>
+        <aside class="w-80 bg-slate-50 p-6 flex flex-col sidebar shadow-sm">
+            <div class="mb-6">
+                <h3 class="text-slate-500 font-bold mb-3 uppercase text-[10px] tracking-widest flex items-center gap-2">
+                    <span class="w-2 h-2 bg-blue-500 rounded-full"></span> 연구 모델 입력
+                </h3>
+                
+                <div class="grid grid-cols-2 gap-2 mb-4">
+                    <button onclick="appendSyntax(' > ')" class="py-2 bg-white border border-slate-200 rounded text-xs font-bold hover:bg-blue-50 transition-colors">인과 (실선)</button>
+                    <button onclick="appendSyntax(' ..> ')" class="py-2 bg-white border border-slate-200 rounded text-xs font-bold hover:bg-blue-50 transition-colors">인과 (점선)</button>
+                    <button onclick="appendSyntax(' - ')" class="py-2 bg-white border border-slate-200 rounded text-xs font-bold hover:bg-blue-50 transition-colors">상관 (실선)</button>
+                    <button onclick="appendSyntax(' .- ')" class="py-2 bg-white border border-slate-200 rounded text-xs font-bold hover:bg-blue-50 transition-colors">상관 (점선)</button>
+                </div>
+
+                <textarea id="inputArea" class="w-full h-64 bg-white text-slate-800 p-4 font-mono text-base border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-400 outline-none resize-none leading-relaxed shadow-inner overflow-y-auto">독립변인 > 매개변인&#10;매개변인 > 종속변인&#10;독립변인 ..> 종속변인</textarea>
+            </div>
+
+            <div class="mt-auto p-4 bg-blue-50/50 rounded-xl border border-blue-100/50">
+                <h4 class="text-[11px] font-black text-blue-700 mb-2 uppercase tracking-tighter">Academic Guide</h4>
+                <ul class="text-[11px] text-slate-500 space-y-1 font-medium">
+                    <li>• 노드를 드래그하면 그리드에 맞춰 정렬됩니다.</li>
+                    <li>• 실선은 유의미한 관계($p<.05$)를 뜻합니다.</li>
+                    <li>• 점선은 유의하지 않은 관계를 뜻합니다.</li>
+                </ul>
             </div>
         </aside>
 
         <main class="flex-1 relative bg-white">
-            <div class="absolute top-4 left-6 z-10 text-[10px] font-black text-slate-300 uppercase tracking-widest pointer-events-none">캔버스 (마우스 드래그)</div>
             <div id="cy"></div>
         </main>
     </div>
 
+    <div id="toast">이미지가 성공적으로 저장되었습니다!</div>
+
     <script>
         let cy;
 
-        // 관계 그리기 핵심 함수
+        // 기호 추가 기능
+        function appendSyntax(syntax) {
+            const area = document.getElementById('inputArea');
+            area.value += syntax;
+            area.focus();
+            renderChart();
+        }
+
+        // 6. 토스트 알림 기능
+        function showToast() {
+            const toast = document.getElementById("toast");
+            toast.className = "show";
+            setTimeout(() => { toast.className = toast.className.replace("show", ""); }, 3000);
+        }
+
         function renderChart() {
             const input = document.getElementById('inputArea').value;
             const lines = input.split('\n').filter(l => l.trim());
@@ -56,7 +117,6 @@
 
             lines.forEach((line, i) => {
                 let fromName, toName, type, style;
-
                 if (line.includes('..>')) {
                     [fromName, toName] = line.split('..>').map(s => s.trim());
                     type = 'triangle'; style = 'dashed';
@@ -72,18 +132,16 @@
                 } else { return; }
 
                 [fromName, toName].forEach(name => {
-                    if (!nodeSet.has(name)) {
+                    if (name && !nodeSet.has(name)) {
                         nodeSet.add(name);
                         elements.push({ data: { id: name, label: name } });
                     }
                 });
-
-                elements.push({
-                    data: { id: `e${i}`, source: fromName, target: toName, type: type, style: style }
-                });
+                if (fromName && toName) {
+                    elements.push({ data: { id: `e${i}`, source: fromName, target: toName, type: type, style: style } });
+                }
             });
 
-            // Cytoscape 초기화 및 업데이트
             if (!cy) {
                 cy = cytoscape({
                     container: document.getElementById('cy'),
@@ -99,34 +157,40 @@
                                 'width': '140px',
                                 'height': '60px',
                                 'shape': 'rectangle',
-                                'border-width': 1.5, // 얇고 정밀하게
+                                'border-width': 1.5,
                                 'border-color': '#000000',
                                 'font-weight': 'bold',
                                 'font-size': '15px',
-                                'font-family': 'sans-serif',
-                                'text-wrap': 'wrap', // 긴 이름 줄바꿈
+                                'text-wrap': 'wrap',
                                 'text-max-width': '120px'
                             }
                         },
                         {
                             selector: 'edge',
                             style: {
-                                'width': 1.5, // 얇고 정밀하게
+                                'width': 1.5,
                                 'line-color': '#000000',
                                 'target-arrow-color': '#000000',
                                 'target-arrow-shape': 'data(type)',
-                                'line-style': 'data(style)', // 점선/실선 적용
+                                'line-style': 'data(style)',
                                 'curve-style': 'bezier',
-                                'target-arrow-fill': 'filled' // 화살표 채움
+                                'target-arrow-fill': 'filled'
                             }
-                        },
-                        {
-                            selector: ':active', // UX 향상: 드래그 중인 노드 강조
-                            style: { 'border-color': '#2563eb', 'border-width': 2.5 }
                         }
                     ],
-                    layout: { name: 'grid', padding: 100 }
+                    layout: { name: 'grid', padding: 80 }
                 });
+
+                // 7. Snap-to-Grid 기능: 드래그가 끝날 때 20px 단위로 위치 고정
+                cy.on('dragfree', 'node', function(evt){
+                    const node = evt.target;
+                    const pos = node.position();
+                    node.position({
+                        x: Math.round(pos.x / 20) * 20,
+                        y: Math.round(pos.y / 20) * 20
+                    });
+                });
+
             } else {
                 const currentPositions = {};
                 cy.nodes().forEach(n => { currentPositions[n.id()] = n.position(); });
@@ -134,34 +198,19 @@
                 cy.nodes().forEach(n => {
                     if (currentPositions[n.id()]) n.position(currentPositions[n.id()]);
                 });
-                cy.layout({ name: 'cola', animate: false, fit: false, refresh: 0.1, gravity: -50 }).run(); 
             }
         }
 
-        // 입력창 변경 시 실시간 반영
         document.getElementById('inputArea').addEventListener('input', renderChart);
 
-        // 이미지 저장 (JPG)
         function saveJPG() {
             const a = document.createElement('a');
-            a.download = `research_model_${Date.now()}.jpg`;
+            a.download = `VibeMapper_${Date.now()}.jpg`;
             a.href = cy.jpg({ full: true, quality: 1, bg: '#ffffff' });
             a.click();
+            showToast(); // 저장 완료 알림 실행
         }
 
-        // 벡터 저장 (SVG) - 논문 투고용 핵심 기능
-        function saveSVG() {
-            const svgContent = cy.svg({ full: true, bg: '#ffffff' });
-            const blob = new Blob([svgContent], { type: 'image/svg+xml;charset=utf-8' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.download = `research_model_${Date.now()}.svg`;
-            a.href = url;
-            a.click();
-            URL.revokeObjectURL(url);
-        }
-
-        // 초기 실행
         window.onload = renderChart;
     </script>
 </body>
