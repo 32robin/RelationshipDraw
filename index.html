@@ -13,79 +13,108 @@
     <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
     <style>
         html, body, #root { height: 100vh; width: 100vw; margin: 0; padding: 0; overflow: hidden; background-color: #f1f5f9; }
-        .react-flow__node { background: #fff; border: 2px solid #1e293b; border-radius: 8px; padding: 10px; font-weight: bold; text-align: center; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); }
+        .react-flow__node { background: #fff; border: 2px solid #1e293b; border-radius: 8px; padding: 10px; font-weight: bold; text-align: center; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); min-width: 100px; }
     </style>
 </head>
 <body>
-    <div id="root"></div>
+    <div id="root">
+        <div style="display:flex; justify-content:center; align-items:center; height:100vh; color:#64748b; font-family:sans-serif;">
+            연구 도구 상자를 열고 있습니다... (잠시만 기다려주세요)
+        </div>
+    </div>
+
     <script type="text/babel">
-        const { useState, useEffect, useCallback } = React;
-        const { ReactFlow, useNodesState, useEdgesState, MarkerType, Background, Controls, ReactFlowProvider } = window.ReactFlow;
+        // 도구가 로드될 때까지 기다리는 안전 장치
+        const startApp = () => {
+            if (!window.ReactFlow) {
+                setTimeout(startApp, 100); // 0.1초마다 도구가 왔는지 확인
+                return;
+            }
 
-        function App() {
-            const [input, setInput] = useState("독립변인 > 매개변인\n매개변인 > 종속변인\n독립변인 > 종속변인");
-            const [nodes, setNodes, onNodesChange] = useNodesState([]);
-            const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+            const { useState, useEffect } = React;
+            const { ReactFlow, useNodesState, useEdgesState, MarkerType, Background, Controls, ReactFlowProvider } = window.ReactFlow;
 
-            useEffect(() => {
-                const lines = input.split('\n').filter(l => l.trim());
-                const newNodes = []; const newEdges = []; const nodeSet = new Set();
-                lines.forEach((line, i) => {
-                    const parts = line.split(/[>-]/);
-                    if (parts.length >= 2) {
-                        const fromName = parts[0].trim(); const toName = parts[1].trim();
-                        [fromName, toName].forEach((name, idx) => {
-                            if (!nodeSet.has(name)) {
-                                nodeSet.add(name);
-                                newNodes.push({ id: name, data: { label: name }, position: { x: 100 + (nodeSet.size * 80), y: 150 + (idx * 100) } });
-                            }
-                        });
-                        newEdges.push({ id: `e-${i}`, source: fromName, target: toName, markerEnd: line.includes('>') ? { type: MarkerType.ArrowClosed, color: '#1e293b' } : null, style: { stroke: '#1e293b', strokeWidth: 2 } });
-                    }
-                });
-                setNodes(nds => newNodes.map(nn => { const prev = nds.find(n => n.id === nn.id); return prev ? { ...nn, position: prev.position } : nn; }));
-                setEdges(newEdges);
-            }, [input]);
+            function App() {
+                const [input, setInput] = useState("독립변인 > 매개변인\n매개변인 > 종속변인\n독립변인 > 종속변인");
+                const [nodes, setNodes, onNodesChange] = useNodesState([]);
+                const [edges, setEdges, onEdgesChange] = useEdgesState([]);
 
-            const saveJPG = async () => {
-                const area = document.querySelector('.react-flow__viewport');
-                const canvas = await html2canvas(area, { backgroundColor: '#ffffff', scale: 2 });
-                const link = document.createElement('a');
-                link.download = `model_${Date.now()}.jpg`;
-                link.href = canvas.toDataURL('image/jpeg');
-                link.click();
-            };
+                useEffect(() => {
+                    const lines = input.split('\n').filter(l => l.trim());
+                    const newNodes = []; const newEdges = []; const nodeSet = new Set();
+                    lines.forEach((line, i) => {
+                        const parts = line.split(/[>-]/);
+                        if (parts.length >= 2) {
+                            const fromName = parts[0].trim(); const toName = parts[1].trim();
+                            [fromName, toName].forEach((name, idx) => {
+                                if (!nodeSet.has(name)) {
+                                    nodeSet.add(name);
+                                    newNodes.push({ id: name, data: { label: name }, position: { x: 150 + (nodeSet.size * 70), y: 150 + (idx * 100) } });
+                                }
+                            });
+                            newEdges.push({ 
+                                id: `e-${i}`, 
+                                source: fromName, 
+                                target: toName, 
+                                markerEnd: line.includes('>') ? { type: MarkerType.ArrowClosed, color: '#334155' } : null, 
+                                style: { stroke: '#334155', strokeWidth: 2.5 } 
+                            });
+                        }
+                    });
+                    setNodes(nds => newNodes.map(nn => {
+                        const prev = nds.find(n => n.id === nn.id);
+                        return prev ? { ...nn, position: prev.position } : nn;
+                    }));
+                    setEdges(newEdges);
+                }, [input]);
 
-            return (
-                <div className="flex flex-col h-screen w-full overflow-hidden bg-slate-50">
-                    <header className="bg-white border-b-2 border-slate-200 px-8 py-4 flex justify-between items-center shadow-sm">
-                        <div>
-                            <h1 className="text-2xl font-black text-slate-800">관계표 그리기 사이트</h1>
-                            <p className="text-blue-600 font-bold text-xs">(충북대 김병수 제작)</p>
-                        </div>
-                        <button onClick={saveJPG} className="bg-slate-800 text-white px-6 py-2 rounded-lg font-bold hover:bg-black transition-all">이미지 저장</button>
-                    </header>
-                    <div className="flex flex-1 overflow-hidden">
-                        <div className="w-80 bg-slate-900 p-6 flex flex-col shadow-2xl z-20">
-                            <h3 className="text-blue-400 font-bold mb-3 underline italic tracking-wider uppercase text-sm">입력페이지</h3>
-                            <textarea className="flex-1 bg-slate-800 text-white p-4 font-mono text-base border border-slate-700 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none resize-none" value={input} onChange={(e) => setInput(e.target.value)} />
-                            <div className="mt-4 p-3 bg-slate-800/50 rounded-lg border border-slate-700 text-[11px] text-slate-400">
-                                <strong>></strong> : 화살표(인과) | <strong>-</strong> : 실선(상관)
+                const saveJPG = async () => {
+                    const area = document.querySelector('.react-flow__viewport');
+                    const canvas = await html2canvas(area, { backgroundColor: '#ffffff', scale: 2 });
+                    const link = document.createElement('a');
+                    link.download = `model_${Date.now()}.jpg`;
+                    link.href = canvas.toDataURL('image/jpeg');
+                    link.click();
+                };
+
+                return (
+                    <div className="flex flex-col h-screen w-full overflow-hidden">
+                        <header className="bg-white border-b-2 border-slate-200 px-8 py-5 flex justify-between items-center shadow-sm z-10">
+                            <div>
+                                <h1 className="text-3xl font-black text-slate-800 tracking-tight">관계표 그리기 사이트</h1>
+                                <p className="text-blue-600 font-bold text-sm">(충북대 김병수 제작)</p>
+                            </div>
+                            <button onClick={saveJPG} className="bg-slate-800 text-white px-6 py-2.5 rounded-lg font-bold hover:bg-black transition-all shadow-md">이미지 저장</button>
+                        </header>
+                        <div className="flex flex-1 overflow-hidden">
+                            <div className="w-80 bg-slate-900 p-6 flex flex-col shadow-2xl z-20">
+                                <h3 className="text-blue-400 font-bold mb-3 underline italic uppercase text-xs tracking-widest">입력페이지</h3>
+                                <textarea className="flex-1 bg-slate-800 text-white p-4 font-mono text-base border border-slate-700 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none resize-none" value={input} onChange={(e) => setInput(e.target.value)} />
+                                <div className="mt-4 p-3 bg-slate-800/30 rounded-lg text-[11px] text-slate-400 font-medium">
+                                    {">"} : 화살표(인과) | - : 실선(상관)<br/>
+                                    * 오른쪽 결과페이지에서 도형을 드래그하세요!
+                                </div>
+                            </div>
+                            <div className="flex-1 relative bg-white overflow-hidden">
+                                <div className="absolute top-4 left-6 z-10 text-[10px] font-black text-slate-300 uppercase tracking-widest pointer-events-none">결과페이지 (Interactive)</div>
+                                <div style={{ width: '100%', height: '100%' }}>
+                                    <ReactFlow nodes={nodes} edges={edges} onNodesChange={onNodesChange} onEdgesChange={onEdgesChange} fitView>
+                                        <Background color="#cbd5e1" gap={25} />
+                                        <Controls />
+                                    </ReactFlow>
+                                </div>
                             </div>
                         </div>
-                        <div className="flex-1 relative bg-white">
-                            <div className="absolute top-4 left-6 z-10 text-[10px] font-black text-slate-300 uppercase tracking-widest pointer-events-none">결과페이지 (Interactive)</div>
-                            <ReactFlow nodes={nodes} edges={edges} onNodesChange={onNodesChange} onEdgesChange={onEdgesChange} fitView>
-                                <Background color="#cbd5e1" gap={25} /><Controls />
-                            </ReactFlow>
-                        </div>
                     </div>
-                </div>
-            );
-        }
+                );
+            }
 
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<ReactFlowProvider><App /></ReactFlowProvider>);
+            const root = ReactDOM.createRoot(document.getElementById('root'));
+            root.render(<ReactFlowProvider><App /></ReactFlowProvider>);
+        };
+
+        // 앱 시작 실행
+        startApp();
     </script>
 </body>
 </html>
