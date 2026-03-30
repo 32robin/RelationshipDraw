@@ -8,124 +8,84 @@
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
-    
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@reactflow/core@11.10.1/dist/style.css">
     <script src="https://cdn.jsdelivr.net/npm/@reactflow/core@11.10.1/dist/prod/index.js"></script>
-    
     <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
     <style>
-        body, html, #root { height: 100vh; width: 100vw; margin: 0; padding: 0; background-color: #f8fafc; }
-        /* 로딩 중 표시 */
-        #loading { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); font-family: sans-serif; color: #64748b; }
+        html, body, #root { height: 100vh; width: 100vw; margin: 0; padding: 0; overflow: hidden; background-color: #f1f5f9; }
+        .react-flow__node { background: #fff; border: 2px solid #1e293b; border-radius: 8px; padding: 10px; font-weight: bold; text-align: center; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); }
     </style>
 </head>
 <body>
-    <div id="root"><div id="loading">연구 도구를 불러오는 중입니다...</div></div>
-
+    <div id="root"></div>
     <script type="text/babel">
-        // 라이브러리가 완전히 로드되었는지 확인 후 실행
-        window.onload = () => {
-            const { useState, useEffect, useCallback } = React;
-            const { ReactFlow, useNodesState, useEdgesState, MarkerType, Background, Controls, ReactFlowProvider } = window.ReactFlow;
+        const { useState, useEffect, useCallback } = React;
+        const { ReactFlow, useNodesState, useEdgesState, MarkerType, Background, Controls, ReactFlowProvider } = window.ReactFlow;
 
-            function FlowEditor() {
-                const [input, setInput] = useState("독립변인 > 매개변인\n매개변인 > 종속변인\n독립변인 > 종속변인");
-                const [nodes, setNodes, onNodesChange] = useNodesState([]);
-                const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+        function App() {
+            const [input, setInput] = useState("독립변인 > 매개변인\n매개변인 > 종속변인\n독립변인 > 종속변인");
+            const [nodes, setNodes, onNodesChange] = useNodesState([]);
+            const [edges, setEdges, onEdgesChange] = useEdgesState([]);
 
-                useEffect(() => {
-                    try {
-                        const lines = input.split('\n').filter(l => l.trim());
-                        const newNodes = [];
-                        const newEdges = [];
-                        const nodeSet = new Set();
-
-                        lines.forEach((line, i) => {
-                            const parts = line.split(/[>-]/);
-                            if (parts.length >= 2) {
-                                const fromName = parts[0].trim();
-                                const toName = parts[1].trim();
-                                const isArrow = line.includes('>');
-
-                                [fromName, toName].forEach((name, idx) => {
-                                    if (!nodeSet.has(name)) {
-                                        nodeSet.add(name);
-                                        newNodes.push({
-                                            id: name,
-                                            data: { label: name },
-                                            position: { x: 150 + (nodeSet.size * 60), y: 100 + (idx * 80) },
-                                            style: { background: '#fff', border: '2px solid #1e293b', borderRadius: '8px', padding: '10px', fontWeight: 'bold', width: 120 }
-                                        });
-                                    }
-                                });
-
-                                newEdges.push({
-                                    id: `e-${i}`,
-                                    source: fromName,
-                                    target: toName,
-                                    markerEnd: isArrow ? { type: MarkerType.ArrowClosed, color: '#334155' } : null,
-                                    style: { stroke: '#334155', strokeWidth: 2 },
-                                });
+            useEffect(() => {
+                const lines = input.split('\n').filter(l => l.trim());
+                const newNodes = []; const newEdges = []; const nodeSet = new Set();
+                lines.forEach((line, i) => {
+                    const parts = line.split(/[>-]/);
+                    if (parts.length >= 2) {
+                        const fromName = parts[0].trim(); const toName = parts[1].trim();
+                        [fromName, toName].forEach((name, idx) => {
+                            if (!nodeSet.has(name)) {
+                                nodeSet.add(name);
+                                newNodes.push({ id: name, data: { label: name }, position: { x: 100 + (nodeSet.size * 80), y: 150 + (idx * 100) } });
                             }
                         });
-
-                        setNodes(nds => newNodes.map(nn => {
-                            const prev = nds.find(n => n.id === nn.id);
-                            return prev ? { ...nn, position: prev.position } : nn;
-                        }));
-                        setEdges(newEdges);
-                    } catch (err) {
-                        console.error("데이터 파싱 에러:", err);
+                        newEdges.push({ id: `e-${i}`, source: fromName, target: toName, markerEnd: line.includes('>') ? { type: MarkerType.ArrowClosed, color: '#1e293b' } : null, style: { stroke: '#1e293b', strokeWidth: 2 } });
                     }
-                }, [input]);
+                });
+                setNodes(nds => newNodes.map(nn => { const prev = nds.find(n => n.id === nn.id); return prev ? { ...nn, position: prev.position } : nn; }));
+                setEdges(newEdges);
+            }, [input]);
 
-                const saveImg = async () => {
-                    const area = document.querySelector('.react-flow__viewport');
-                    const canvas = await html2canvas(area, { backgroundColor: '#ffffff' });
-                    const link = document.createElement('a');
-                    link.download = `model.jpg`;
-                    link.href = canvas.toDataURL('image/jpeg');
-                    link.click();
-                };
+            const saveJPG = async () => {
+                const area = document.querySelector('.react-flow__viewport');
+                const canvas = await html2canvas(area, { backgroundColor: '#ffffff', scale: 2 });
+                const link = document.createElement('a');
+                link.download = `model_${Date.now()}.jpg`;
+                link.href = canvas.toDataURL('image/jpeg');
+                link.click();
+            };
 
-                return (
-                    <div className="flex flex-col h-screen overflow-hidden">
-                        <header className="bg-white border-b px-8 py-5 flex justify-between items-center z-10 shadow-sm">
-                            <div>
-                                <h1 className="text-3xl font-black text-slate-800 tracking-tight">관계표 그리기 사이트</h1>
-                                <p className="text-blue-600 font-bold text-sm">충북대 심리학과 김병수 제작 (v3.2)</p>
-                            </div>
-                            <button onClick={saveImg} className="bg-slate-800 text-white px-6 py-2.5 rounded-lg font-bold hover:bg-black transition-all">그림 저장</button>
-                        </header>
-
-                        <div className="flex flex-1 overflow-hidden">
-                            <div className="w-80 bg-slate-900 p-6 flex flex-col shadow-2xl z-10">
-                                <label className="text-blue-400 font-bold mb-2 text-sm underline italic">입력페이지</label>
-                                <textarea 
-                                    className="flex-1 bg-slate-800 text-white p-4 font-mono text-base border border-slate-700 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
-                                    value={input}
-                                    onChange={(e) => setInput(e.target.value)}
-                                />
-                                <div className="mt-4 text-[10px] text-slate-500 leading-tight">
-                                    > 화살표(인과) | - 실선(상관)<br/>
-                                    * 오른쪽 화면에서 마우스로 직접 배치하세요.
-                                </div>
-                            </div>
-                            <div className="flex-1 relative">
-                                <div className="absolute top-4 left-6 z-10 text-[11px] font-black text-slate-300 uppercase tracking-widest pointer-events-none">결과페이지 (Interactive)</div>
-                                <ReactFlow nodes={nodes} edges={edges} onNodesChange={onNodesChange} onEdgesChange={onEdgesChange} fitView>
-                                    <Background color="#cbd5e1" gap={25} />
-                                    <Controls />
-                                </ReactFlow>
+            return (
+                <div className="flex flex-col h-screen w-full overflow-hidden bg-slate-50">
+                    <header className="bg-white border-b-2 border-slate-200 px-8 py-4 flex justify-between items-center shadow-sm">
+                        <div>
+                            <h1 className="text-2xl font-black text-slate-800">관계표 그리기 사이트</h1>
+                            <p className="text-blue-600 font-bold text-xs">(충북대 김병수 제작)</p>
+                        </div>
+                        <button onClick={saveJPG} className="bg-slate-800 text-white px-6 py-2 rounded-lg font-bold hover:bg-black transition-all">이미지 저장</button>
+                    </header>
+                    <div className="flex flex-1 overflow-hidden">
+                        <div className="w-80 bg-slate-900 p-6 flex flex-col shadow-2xl z-20">
+                            <h3 className="text-blue-400 font-bold mb-3 underline italic tracking-wider uppercase text-sm">입력페이지</h3>
+                            <textarea className="flex-1 bg-slate-800 text-white p-4 font-mono text-base border border-slate-700 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none resize-none" value={input} onChange={(e) => setInput(e.target.value)} />
+                            <div className="mt-4 p-3 bg-slate-800/50 rounded-lg border border-slate-700 text-[11px] text-slate-400">
+                                <strong>></strong> : 화살표(인과) | <strong>-</strong> : 실선(상관)
                             </div>
                         </div>
+                        <div className="flex-1 relative bg-white">
+                            <div className="absolute top-4 left-6 z-10 text-[10px] font-black text-slate-300 uppercase tracking-widest pointer-events-none">결과페이지 (Interactive)</div>
+                            <ReactFlow nodes={nodes} edges={edges} onNodesChange={onNodesChange} onEdgesChange={onEdgesChange} fitView>
+                                <Background color="#cbd5e1" gap={25} /><Controls />
+                            </ReactFlow>
+                        </div>
                     </div>
-                );
-            }
+                </div>
+            );
+        }
 
-            const root = ReactDOM.createRoot(document.getElementById('root'));
-            root.render(<ReactFlowProvider><FlowEditor /></ReactFlowProvider>);
-        };
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<ReactFlowProvider><App /></ReactFlowProvider>);
     </script>
 </body>
 </html>
