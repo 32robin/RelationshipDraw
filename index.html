@@ -3,194 +3,141 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PsychModeler Ultra - 충북대 김병수</title>
-    
-    <script src="https://unpkg.com/react@18.2.0/umd/react.production.min.js"></script>
-    <script src="https://unpkg.com/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <title>관계표 그리기 사이트(충북대 김병수 제작)</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.26.0/cytoscape.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
-    
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@reactflow/core@11.10.1/dist/style.css">
-    <script src="https://cdn.jsdelivr.net/npm/@reactflow/core@11.10.1/dist/prod/index.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/dagre/0.8.5/dagre.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html-to-image/1.11.11/html-to-image.min.js"></script>
-
+    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@400;700&display=swap');
-        body, html, #root { height: 100%; margin: 0; padding: 0; font-family: 'Pretendard', sans-serif; overflow: hidden; }
-        .react-flow__node { border-radius: 2px; border: 1.2px solid #000; background: #fff; font-weight: 700; color: #000; transition: none; }
-        .react-flow__edge-path { stroke: #000; stroke-width: 1.5; }
-        .react-flow__edge-text { font-size: 11px; font-weight: 800; }
-        /* 학술지 모드 (APA 스타일) */
-        .apa-mode .react-flow__background { display: none; }
-        .apa-mode .react-flow__node { box-shadow: none; border-width: 1.5px; font-size: 14px; }
-        .sidebar-scroll::-webkit-scrollbar { width: 4px; }
-        .sidebar-scroll::-webkit-scrollbar-thumb { background: #475569; border-radius: 10px; }
+        body, html { height: 100vh; width: 100vw; margin: 0; padding: 0; overflow: hidden; background-color: #f1f5f9; font-family: sans-serif; }
+        #cy { width: 100%; height: 100%; background-color: #ffffff; }
+        .sidebar { z-index: 10; box-shadow: 2px 0 10px rgba(0,0,0,0.1); }
     </style>
 </head>
-<body>
-    <div id="root">
-        <div style="display:flex; justify-content:center; align-items:center; height:100vh; flex-direction:column; gap:20px;">
-            <div style="width: 40px; height: 40px; border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; animate: spin 1s linear infinite;"></div>
-            <p style="color:#64748b; font-weight:bold;">연구 도구 엔진을 최적화하여 로드 중입니다...</p>
+<body class="flex flex-col h-screen">
+
+    <header class="bg-white border-b-2 border-slate-200 px-8 py-5 flex justify-between items-center z-20 shadow-sm">
+        <div>
+            <h1 class="text-3xl font-black text-slate-800 tracking-tight">관계표 그리기 사이트</h1>
+            <p class="text-blue-600 font-bold text-sm">(충북대 심리학과 김병수 제작)</p>
         </div>
+        <button onclick="saveImage()" class="bg-slate-800 text-white px-6 py-2.5 rounded-lg font-bold hover:bg-black transition-all shadow-md">이미지 저장</button>
+    </header>
+
+    <div class="flex flex-1 overflow-hidden">
+        <aside class="w-80 bg-slate-900 p-6 flex flex-col sidebar">
+            <h3 class="text-blue-400 font-bold mb-3 underline italic uppercase text-xs tracking-widest">입력페이지</h3>
+            <textarea id="inputArea" class="flex-1 bg-slate-800 text-white p-4 font-mono text-base border border-slate-700 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none resize-none leading-relaxed">독립변인 > 매개변인&#10;매개변인 > 종속변인&#10;독립변인 > 종속변인</textarea>
+            <div class="mt-4 p-3 bg-slate-800/50 rounded-lg text-[11px] text-slate-400 leading-tight">
+                <span class="text-blue-400 font-bold">></span> : 화살표 연결 (인과)<br/>
+                <span class="text-slate-300 font-bold">-</span> : 실선 연결 (상관)<br/>
+                * 오른쪽 결과창에서 도형을 마우스로 자유롭게 드래그하세요!
+            </div>
+        </aside>
+
+        <main class="flex-1 relative">
+            <div class="absolute top-4 left-6 z-10 text-[10px] font-black text-slate-300 uppercase tracking-widest pointer-events-none">결과페이지 (마우스 드래그 가능)</div>
+            <div id="cy"></div>
+        </main>
     </div>
 
-    <script type="text/babel">
-        const { useState, useEffect, useCallback, useRef, useMemo } = React;
-        const { ReactFlow, ReactFlowProvider, useNodesState, useEdgesState, MarkerType, Background, Controls, Panel } = window.ReactFlow;
+    <script>
+        let cy;
 
-        // 안정적인 레이아웃 엔진 설정
-        const dagreGraph = new dagre.graphlib.Graph();
-        dagreGraph.setDefaultEdgeLabel(() => ({}));
+        // 관계 그리기 핵심 함수
+        function renderChart() {
+            const input = document.getElementById('inputArea').value;
+            const lines = input.split('\n').filter(l => l.trim());
+            const elements = [];
+            const nodeSet = new Set();
 
-        const applyLayout = (nodes, edges) => {
-            dagreGraph.setGraph({ rankdir: 'LR', nodesep: 70, ranksep: 120 });
-            nodes.forEach((node) => dagreGraph.setNode(node.id, { width: 160, height: 40 }));
-            edges.forEach((edge) => dagreGraph.setEdge(edge.source, edge.target));
-            dagre.layout(dagreGraph);
-            return nodes.map((node) => {
-                const pos = dagreGraph.node(node.id);
-                return { ...node, position: { x: pos.x - 80, y: pos.y - 20 } };
-            });
-        };
+            lines.forEach((line, i) => {
+                const parts = line.split(/[>-]/);
+                if (parts.length >= 2) {
+                    const fromName = parts[0].trim();
+                    const toName = parts[1].trim();
+                    const isArrow = line.includes('>');
 
-        function PsychApp() {
-            const [input, setInput] = useState("정서신념 -> 정서조절 [0.45***]\n정서조절 -> 심리적안녕감 [0.52***]\n정서신념 -> 심리적안녕감 [0.12ns]");
-            const [nodes, setNodes, onNodesChange] = useNodesState([]);
-            const [edges, setEdges, onEdgesChange] = useEdgesState([]);
-            const [isApa, setIsApa] = useState(false);
-            const reactFlowWrapper = useRef(null);
-
-            // 입력값 파싱 및 모델 생성
-            useEffect(() => {
-                try {
-                    const lines = input.split('\n').filter(l => l.trim());
-                    const tempNodes = [];
-                    const tempEdges = [];
-                    const nodeNames = new Set();
-
-                    lines.forEach((line, idx) => {
-                        const match = line.match(/(.+?)(->|-)(.+?)(\[(.+?)\])?$/);
-                        if (match) {
-                            const [, from, op, to, , val] = match.map(s => s?.trim());
-                            const isDirected = op === "->";
-
-                            [from, to].forEach(name => {
-                                if (!nodeNames.has(name)) {
-                                    nodeNames.add(name);
-                                    tempNodes.push({ id: name, data: { label: name }, position: { x: 0, y: 0 } });
-                                }
-                            });
-
-                            tempEdges.push({
-                                id: `e-${idx}`,
-                                source: from,
-                                target: to,
-                                label: val || "",
-                                markerEnd: isDirected ? { type: MarkerType.ArrowClosed, color: '#000' } : null,
-                                style: { strokeDasharray: isDirected ? '' : '5,5', stroke: '#000' },
-                                labelStyle: { fontWeight: 700, fill: '#000' }
-                            });
+                    [fromName, toName].forEach(name => {
+                        if (!nodeSet.has(name)) {
+                            nodeSet.add(name);
+                            elements.push({ data: { id: name, label: name } });
                         }
                     });
 
-                    const layouted = applyLayout(tempNodes, tempEdges);
-                    setNodes(layouted);
-                    setEdges(tempEdges);
-                } catch (err) {
-                    console.error("Parsing Error:", err);
+                    elements.push({
+                        data: {
+                            id: `e${i}`,
+                            source: fromName,
+                            target: toName,
+                            type: isArrow ? 'triangle' : 'none'
+                        }
+                    });
                 }
-            }, [input]);
+            });
 
-            const downloadImage = async () => {
-                const target = document.querySelector('.react-flow__viewport');
-                if (!target) return;
-                const dataUrl = await htmlToImage.toPng(target, { 
-                    backgroundColor: '#ffffff',
-                    pixelRatio: 3,
-                    style: { transform: 'scale(1)', transformOrigin: 'top left' }
+            // Cytoscape 초기화 및 업데이트
+            if (!cy) {
+                cy = cytoscape({
+                    container: document.getElementById('cy'),
+                    elements: elements,
+                    style: [
+                        {
+                            selector: 'node',
+                            style: {
+                                'background-color': '#ffffff',
+                                'label': 'data(label)',
+                                'text-valign': 'center',
+                                'text-halign': 'center',
+                                'width': '120px',
+                                'height': '50px',
+                                'shape': 'round-rectangle',
+                                'border-width': 2,
+                                'border-color': '#1e293b',
+                                'font-weight': 'bold',
+                                'font-size': '16px'
+                            }
+                        },
+                        {
+                            selector: 'edge',
+                            style: {
+                                'width': 3,
+                                'line-color': '#334155',
+                                'target-arrow-color': '#334155',
+                                'target-arrow-shape': 'data(type)',
+                                'curve-style': 'bezier'
+                            }
+                        }
+                    ],
+                    layout: { name: 'grid', padding: 100 }
                 });
-                const link = document.createElement('a');
-                link.download = `Model_Result_${Date.now()}.png`;
-                link.href = dataUrl;
-                link.click();
-            };
-
-            return (
-                <div className={`flex h-screen w-full ${isApa ? 'apa-mode' : 'bg-slate-50'}`}>
-                    {/* Control Sidebar */}
-                    <div className="w-80 bg-slate-900 shadow-2xl z-20 flex flex-col text-white">
-                        <div className="p-6 bg-slate-800 border-b border-slate-700">
-                            <h1 className="text-xl font-black text-blue-400 tracking-tight">PsychModeler Ultra</h1>
-                            <p className="text-[10px] text-slate-400 font-bold mt-1 uppercase tracking-widest">Stable Core v2.1</p>
-                        </div>
-                        
-                        <div className="flex-1 p-5 overflow-y-auto sidebar-scroll space-y-6">
-                            <div>
-                                <label className="text-[11px] font-bold text-slate-500 uppercase mb-2 block">Variable Relations</label>
-                                <textarea 
-                                    className="w-full h-48 bg-slate-950 border border-slate-700 rounded-md p-3 font-mono text-sm focus:ring-1 focus:ring-blue-500 outline-none text-blue-100"
-                                    value={input}
-                                    onChange={(e) => setInput(e.target.value)}
-                                />
-                            </div>
-
-                            <div className="space-y-3">
-                                <button onClick={() => setIsApa(!isApa)} className={`w-full py-2 rounded font-bold text-xs transition-all ${isApa ? 'bg-blue-600' : 'bg-slate-700 hover:bg-slate-600'}`}>
-                                    {isApa ? 'APA Mode: ON (B&W)' : 'APA Mode: OFF'}
-                                </button>
-                                <button onClick={downloadImage} className="w-full bg-white text-slate-950 py-3 rounded font-black text-sm hover:bg-blue-50 transition-all shadow-lg active:scale-95">
-                                    고해상도 이미지 추출
-                                </button>
-                            </div>
-
-                            <div className="p-4 bg-slate-800/50 rounded-lg border border-slate-700">
-                                <h4 className="text-[10px] font-bold text-blue-400 mb-2 underline uppercase">Syntax Guide</h4>
-                                <ul className="text-[11px] text-slate-400 space-y-1.5 font-medium">
-                                    <li>• <code className="text-white">A -> B</code> : 인과관계 (실선)</li>
-                                    <li>• <code className="text-white">A - B</code> : 상관관계 (점선)</li>
-                                    <li>• <code className="text-white">[0.35***]</code> : 경로계수 표기</li>
-                                </ul>
-                            </div>
-                        </div>
-                        
-                        <div className="p-4 text-center border-t border-slate-800 bg-slate-900">
-                            <p className="text-[10px] text-slate-500 font-bold">충북대 심리학과 김병수 제작</p>
-                        </div>
-                    </div>
-
-                    {/* Diagram Canvas */}
-                    <div className="flex-1 relative" ref={reactFlowWrapper}>
-                        <ReactFlow 
-                            nodes={nodes} 
-                            edges={edges} 
-                            onNodesChange={onNodesChange} 
-                            fitView
-                            minZoom={0.2}
-                            maxZoom={4}
-                        >
-                            {!isApa && <Background color="#cbd5e1" gap={20} />}
-                            <Controls />
-                            <Panel position="top-right" className="bg-white/90 p-2 rounded border border-slate-300 shadow-sm text-[10px] font-bold text-slate-500 pointer-events-none">
-                                PREVIEW AREA (Drag nodes to adjust)
-                            </Panel>
-                        </ReactFlow>
-                    </div>
-                </div>
-            );
+            } else {
+                // 기존 위치를 유지하면서 데이터만 갱신
+                const currentPositions = {};
+                cy.nodes().forEach(n => { currentPositions[n.id()] = n.position(); });
+                
+                cy.json({ elements });
+                
+                cy.nodes().forEach(n => {
+                    if (currentPositions[n.id()]) n.position(currentPositions[n.id()]);
+                });
+                
+                cy.layout({ name: 'cola', animate: false, fit: true }).run(); // 가벼운 정렬
+            }
         }
 
-        // 안정성 보장 라이브러리 체크 루프
-        const startApp = () => {
-            if (window.React && window.ReactFlow && window.dagre && window.htmlToImage) {
-                const root = ReactDOM.createRoot(document.getElementById('root'));
-                root.render(<ReactFlowProvider><PsychApp /></ReactFlowProvider>);
-            } else {
-                setTimeout(startApp, 50);
-            }
-        };
-        startApp();
+        // 입력창 변경 시 실시간 반영
+        document.getElementById('inputArea').addEventListener('input', renderChart);
+
+        // 이미지 저장 함수
+        async function saveImage() {
+            const a = document.createElement('a');
+            a.download = 'research_model.jpg';
+            a.href = cy.jpg({ full: true, quality: 0.9, bg: '#ffffff' });
+            a.click();
+        }
+
+        // 초기 실행
+        window.onload = renderChart;
     </script>
 </body>
 </html>
