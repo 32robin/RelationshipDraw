@@ -2,216 +2,1240 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>관계표 그리기 사이트 v6.0 (충북대 김병수 제작)</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.26.0/cytoscape.min.js"></script>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <title> 변인 모형 생성기 v1.0.0</title>
+    <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
     <style>
-        body, html { height: 100vh; width: 100vw; margin: 0; padding: 0; overflow: hidden; background-color: #ffffff; font-family: 'Pretendard', sans-serif; }
+        * { box-sizing: border-box; }
+        body { 
+            display: flex; 
+            flex-direction: column;
+            margin: 0; 
+            height: 100vh; 
+            font-family: 'Malgun Gothic', sans-serif; 
+            background-color: #f8f9fa; 
+        }
         
-        /* 1. 결과창 그리드 배경 (Snap-to-Grid 보조) */
-        #cy { 
-            width: 100%; 
-            height: 100%; 
+        #header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 20px;
+            height: 56px;
             background-color: #ffffff;
-            background-image: radial-gradient(#cbd5e1 1px, transparent 1px);
-            background-size: 20px 20px; /* 20px 간격 도트 */
+            border-bottom: 1px solid #dee2e6;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            z-index: 10;
+            flex-shrink: 0;
+        }
+        #header-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        #header-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #212529;
+            white-space: nowrap;
+        }
+        #header-center {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        #header-right {
+            display: flex;
+            align-items: center;
+            gap: 6px;
         }
 
-        .sidebar { border-right: 1px solid #e2e8f0; z-index: 10; }
-        
-        /* 2. 토스트 알림 스타일 */
-        #toast {
-            visibility: hidden;
-            min-width: 250px;
-            background-color: #1e293b;
-            color: #fff;
-            text-align: center;
-            border-radius: 8px;
-            padding: 16px;
-            position: fixed;
-            z-index: 100;
-            left: 50%;
-            bottom: 30px;
-            transform: translateX(-50%);
-            font-size: 14px;
+        .hbtn {
+            padding: 6px 13px;
+            cursor: pointer;
+            background: #ffffff;
+            color: #495057;
+            border: 1px solid #ced4da;
+            border-radius: 6px;
             font-weight: 600;
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            font-size: 13px;
+            transition: all 0.15s;
+            white-space: nowrap;
+            font-family: inherit;
         }
-        #toast.show { visibility: visible; animation: fadein 0.5s, fadeout 0.5s 2.5s; }
+        .hbtn:hover { background: #f1f3f5; color: #212529; border-color: #adb5bd; }
+        .hbtn.primary { background: #212529; color: white; border: 1px solid #212529; }
+        .hbtn.primary:hover { background: #495057; }
+        .hbtn-hist { font-size: 12px; padding: 5px 10px; background: #f8f9fa; }
 
-        @keyframes fadein { from { bottom: 0; opacity: 0; } to { bottom: 30px; opacity: 1; } }
-        @keyframes fadeout { from { bottom: 30px; opacity: 1; } to { bottom: 0; opacity: 0; } }
+        .theme-btn {
+            width: 28px; height: 28px;
+            border-radius: 50%;
+            border: 2px solid #ced4da;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .theme-btn:hover { transform: scale(1.15); }
+        .theme-btn.active { border-color: #212529; box-shadow: 0 0 0 2px rgba(33,37,41,0.25); }
+        .theme-btn[data-theme="black"] { background: #212529; }
+        .theme-btn[data-theme="sky"] { background: #4dabf7; }
+        .theme-btn[data-theme="pink"] { background: #f06595; }
+        .theme-btn[data-theme="green"] { background: #51cf66; }
+
+        .size-group {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            margin-left: 4px;
+            padding-left: 10px;
+            border-left: 1px solid #dee2e6;
+        }
+        .size-label {
+            font-size: 12px;
+            color: #868e96;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+        .size-slider {
+            width: 80px;
+            height: 4px;
+            -webkit-appearance: none;
+            appearance: none;
+            background: #dee2e6;
+            border-radius: 2px;
+            outline: none;
+            cursor: pointer;
+        }
+        .size-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 14px; height: 14px;
+            border-radius: 50%;
+            background: #495057;
+            border: 2px solid #fff;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+            cursor: pointer;
+        }
+        .size-val {
+            font-size: 11px;
+            color: #868e96;
+            width: 20px;
+            text-align: center;
+        }
+
+        .sep { width: 1px; height: 24px; background: #dee2e6; margin: 0 4px; }
+
+        #main-content {
+            display: flex;
+            flex-grow: 1;
+            height: calc(100vh - 56px - 26px);
+        }
+        
+        #left-panel { 
+            width: 28%; 
+            min-width: 280px;
+            padding: 18px; 
+            background: white; 
+            border-right: 1px solid #dee2e6; 
+            display: flex; 
+            flex-direction: column; 
+        }
+        .input-guide {
+            font-size: 13px;
+            color: #6c757d;
+            margin: 0 0 6px 0;
+            line-height: 1.5;
+        }
+        .input-guide code {
+            background: #f1f3f5;
+            padding: 1px 5px;
+            border-radius: 3px;
+            font-size: 12px;
+            font-family: 'Consolas', monospace;
+            color: #495057;
+        }
+        textarea { 
+            flex-grow: 1; 
+            margin-bottom: 12px; 
+            padding: 14px; 
+            font-size: 14px; 
+            line-height: 1.6;
+            resize: none; 
+            border: 1px solid #ced4da; 
+            border-radius: 8px; 
+            background-color: #fcfcfc;
+            font-family: inherit;
+        }
+        
+        .btn-group { display: flex; flex-direction: column; gap: 8px; }
+        .action-btn { 
+            padding: 13px; 
+            cursor: pointer; 
+            border: none; 
+            border-radius: 8px; 
+            font-weight: bold; 
+            font-size: 14px;
+            transition: background 0.2s;
+            font-family: inherit;
+        }
+        .btn-add { background: #0d6efd; color: white; }
+        .btn-add:hover { background: #0b5ed7; }
+        .btn-random { background: #e9ecef; color: #495057; border: 1px solid #ced4da; }
+        .btn-random:hover { background: #dee2e6; color: #212529; }
+        
+        #right-panel { 
+            flex: 1;
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            padding: 30px; 
+            background-color: #f8f9fa;
+        }
+        
+        #canvas-container {
+            width: 100%;
+            max-width: 1122px; 
+            aspect-ratio: 1.414 / 1; 
+            background: #ffffff; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            border: 1px solid #e9ecef;
+            border-radius: 4px;
+            position: relative;
+        }
+
+        /* 스냅 가이드라인 */
+        .snap-line {
+            position: absolute;
+            background: #339af0;
+            opacity: 0.5;
+            z-index: 5;
+            pointer-events: none;
+        }
+        .snap-line.horizontal {
+            height: 1px;
+            left: 0; right: 0;
+        }
+        .snap-line.vertical {
+            width: 1px;
+            top: 0; bottom: 0;
+        }
+
+        /* 계수 입력 모달 */
+        #coeff-modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            background: #fff;
+            border: 1px solid #ced4da;
+            border-radius: 8px;
+            padding: 14px 18px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+            font-family: inherit;
+        }
+        #coeff-modal label {
+            font-size: 13px;
+            font-weight: 600;
+            color: #495057;
+            display: block;
+            margin-bottom: 6px;
+        }
+        #coeff-modal input {
+            width: 160px;
+            padding: 7px 10px;
+            border: 1px solid #ced4da;
+            border-radius: 6px;
+            font-size: 14px;
+            font-family: inherit;
+            outline: none;
+        }
+        #coeff-modal input:focus { border-color: #339af0; }
+        #coeff-modal .modal-btns {
+            display: flex;
+            gap: 6px;
+            margin-top: 10px;
+            justify-content: flex-end;
+        }
+        #coeff-modal .modal-btns button {
+            padding: 5px 14px;
+            border-radius: 5px;
+            border: 1px solid #ced4da;
+            cursor: pointer;
+            font-size: 13px;
+            font-family: inherit;
+            font-weight: 600;
+        }
+        #coeff-modal .mbtn-ok { background: #212529; color: #fff; border-color: #212529; }
+        #coeff-modal .mbtn-del { background: #fff; color: #e03131; border-color: #e03131; }
+        #coeff-modal .mbtn-cancel { background: #f8f9fa; color: #495057; }
+
+        .line-toggle {
+            display: flex;
+            gap: 0;
+            margin: 10px 0 0 0;
+            border: 1px solid #ced4da;
+            border-radius: 6px;
+            overflow: hidden;
+        }
+        .line-toggle button {
+            flex: 1;
+            padding: 7px 0;
+            border: none;
+            background: #f8f9fa;
+            color: #495057;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            font-family: inherit;
+            transition: all 0.12s;
+        }
+        .line-toggle button:first-child { border-right: 1px solid #ced4da; }
+        .line-toggle button.active {
+            background: #212529;
+            color: #fff;
+        }
+        .line-toggle button:hover:not(.active) { background: #e9ecef; }
+
+        #header-tip {
+            text-align: center;
+            font-size: 12px;
+            color: #868e96;
+            background: #f8f9fa;
+            padding: 4px 0;
+            border-bottom: 1px solid #e9ecef;
+            flex-shrink: 0;
+        }
     </style>
 </head>
-<body class="flex flex-col h-screen overflow-hidden">
+<body>
 
-    <header class="bg-white border-b px-8 py-4 flex justify-between items-center z-20">
-        <div>
-            <h1 class="text-2xl font-black text-slate-800 tracking-tight leading-none">Vibe Mapper <span class="text-blue-600">v6.0</span></h1>
-            <p class="text-slate-400 font-bold text-[11px] uppercase tracking-widest mt-1">Chungbuk Nat'l Univ. | Researcher Edition</p>
+    <div id="header">
+        <div id="header-left">
+            <span id="header-title">인과지도 모형 생성기</span>
+            <button class="hbtn hbtn-hist" onclick="undo()" title="Ctrl+Z">⟲ 뒤로</button>
+            <button class="hbtn hbtn-hist" onclick="redo()" title="Ctrl+Y">⟳ 앞으로</button>
         </div>
-        <div class="flex items-center gap-4">
-            <span class="text-xs text-slate-400 font-medium mr-2 italic">※ 모든 결과물은 APA 가이드라인에 최적화되어 출력됩니다.</span>
-            <button onclick="saveJPG()" class="bg-blue-600 text-white px-6 py-2.5 rounded-lg font-bold hover:bg-blue-700 transition-all shadow-sm text-sm active:scale-95">이미지 저장 (JPG)</button>
+        <div id="header-center">
+            <span class="size-label">테마</span>
+            <button class="theme-btn active" data-theme="black" onclick="setTheme('black')" title="검은색"></button>
+            <button class="theme-btn" data-theme="sky" onclick="setTheme('sky')" title="하늘색"></button>
+            <button class="theme-btn" data-theme="pink" onclick="setTheme('pink')" title="분홍색"></button>
+            <button class="theme-btn" data-theme="green" onclick="setTheme('green')" title="초록색"></button>
+
+            <div class="sep"></div>
+
+            <div class="size-group">
+                <span class="size-label">글자</span>
+                <input type="range" class="size-slider" id="fontSlider" min="14" max="36" value="22" oninput="applySize()">
+                <span class="size-val" id="fontVal">22</span>
+            </div>
+            <div class="size-group">
+                <span class="size-label">화살표</span>
+                <input type="range" class="size-slider" id="edgeSlider" min="1" max="5" value="2" step="0.5" oninput="applySize()">
+                <span class="size-val" id="edgeVal">2</span>
+            </div>
         </div>
-    </header>
-
-    <div class="flex flex-1 overflow-hidden">
-        <aside class="w-80 bg-slate-50 p-6 flex flex-col sidebar shadow-sm">
-            <div class="mb-6">
-                <h3 class="text-slate-500 font-bold mb-3 uppercase text-[10px] tracking-widest flex items-center gap-2">
-                    <span class="w-2 h-2 bg-blue-500 rounded-full"></span> 연구 모델 입력
-                </h3>
-                
-                <div class="grid grid-cols-2 gap-2 mb-4">
-                    <button onclick="appendSyntax(' > ')" class="py-2 bg-white border border-slate-200 rounded text-xs font-bold hover:bg-blue-50 transition-colors">인과 (실선)</button>
-                    <button onclick="appendSyntax(' ..> ')" class="py-2 bg-white border border-slate-200 rounded text-xs font-bold hover:bg-blue-50 transition-colors">인과 (점선)</button>
-                    <button onclick="appendSyntax(' - ')" class="py-2 bg-white border border-slate-200 rounded text-xs font-bold hover:bg-blue-50 transition-colors">상관 (실선)</button>
-                    <button onclick="appendSyntax(' .- ')" class="py-2 bg-white border border-slate-200 rounded text-xs font-bold hover:bg-blue-50 transition-colors">상관 (점선)</button>
-                </div>
-
-                <textarea id="inputArea" class="w-full h-64 bg-white text-slate-800 p-4 font-mono text-base border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-400 outline-none resize-none leading-relaxed shadow-inner overflow-y-auto">독립변인 > 매개변인&#10;매개변인 > 종속변인&#10;독립변인 ..> 종속변인</textarea>
-            </div>
-
-            <div class="mt-auto p-4 bg-blue-50/50 rounded-xl border border-blue-100/50">
-                <h4 class="text-[11px] font-black text-blue-700 mb-2 uppercase tracking-tighter">Academic Guide</h4>
-                <ul class="text-[11px] text-slate-500 space-y-1 font-medium">
-                    <li>• 노드를 드래그하면 그리드에 맞춰 정렬됩니다.</li>
-                    <li>• 실선은 유의미한 관계($p<.05$)를 뜻합니다.</li>
-                    <li>• 점선은 유의하지 않은 관계를 뜻합니다.</li>
-                </ul>
-            </div>
-        </aside>
-
-        <main class="flex-1 relative bg-white">
-            <div id="cy"></div>
-        </main>
+        <div id="header-right">
+            <button class="hbtn" onclick="centerNetwork()">중앙 정렬</button>
+            <button class="hbtn primary" onclick="saveAsJPG()">JPG 저장</button>
+        </div>
     </div>
 
-    <div id="toast">이미지가 성공적으로 저장되었습니다!</div>
+    <div id="header-tip">선을 클릭하여 계수를 입력하거나, 직선/곡선을 변경할 수 있습니다.</div>
+
+    <div id="main-content">
+        <div id="left-panel">
+            <h3 style="margin-top:0; color: #212529;">시스템 변인 입력</h3>
+            <p class="input-guide">
+                단방향: <code>원인 - 결과</code><br>
+                쌍방향: <code>변인1 &lt;-&gt; 변인2</code>
+            </p>
+            <textarea id="inputText">예산 부족 - 전문인력 이탈
+전문인력 이탈 - 인원 부족
+인원 부족 - 업무 과중
+업무 과중 - 전문인력 소진
+업무 과중 - 기존 업무 부실화
+전문인력 이탈 - 인력 교체 빈번
+인력 교체 빈번 - 인력 전문성 저하
+업무 과중 <-> 전문인력 이탈</textarea>
+            
+            <div class="btn-group">
+                <button class="action-btn btn-add" onclick="addOnly()">변인 & 화살표만 추가하기</button>
+                <button class="action-btn btn-random" onclick="generateRandom()">랜덤 자동 모형 생성 (초기화)</button>
+            </div>
+        </div>
+
+        <div id="right-panel">
+            <div id="canvas-container"></div>
+        </div>
+    </div>
+
+    <!-- 계수 입력 모달 -->
+    <div id="coeff-modal">
+        <label id="coeff-label">계수 입력</label>
+        <input type="text" id="coeff-input" placeholder="예: 0.85, -0.3">
+        <div class="line-toggle">
+            <button id="btn-curved" class="active" onclick="setEdgeCurve(true)">곡선</button>
+            <button id="btn-straight" onclick="setEdgeCurve(false)">직선</button>
+        </div>
+        <div class="modal-btns">
+            <button class="mbtn-del" onclick="deleteCoeff()">삭제</button>
+            <button class="mbtn-cancel" onclick="closeCoeffModal()">취소</button>
+            <button class="mbtn-ok" onclick="applyCoeff()">적용</button>
+        </div>
+    </div>
 
     <script>
-        let cy;
+        let network = null;
+        let nodesDataSet = new vis.DataSet();
+        let edgesDataSet = new vis.DataSet();
+        
+        let historyStack = [];
+        let historyIndex = -1;
+        let isRestoring = false;
 
-        // 기호 추가 기능
-        function appendSyntax(syntax) {
-            const area = document.getElementById('inputArea');
-            area.value += syntax;
-            area.focus();
-            renderChart();
+        const LIMIT_X = 520; 
+        const LIMIT_Y = 360;
+
+        let layoutCounter = 0; // 레이아웃 종류 순환용
+
+        // ===== 테마 정의 (하늘/분홍/초록: 배경 흰색, 테두리+글씨 컬러) =====
+        const THEMES = {
+            black: {
+                nodeBg: '#ffffff',
+                nodeBorder: '#000000',
+                nodeHighlightBg: '#f8f9fa',
+                nodeHighlightBorder: '#000000',
+                fontColor: '#000000',
+                edgeColor: '#000000',
+            },
+            sky: {
+                nodeBg: '#ffffff',
+                nodeBorder: '#1c7ed6',
+                nodeHighlightBg: '#f0f7ff',
+                nodeHighlightBorder: '#1864ab',
+                fontColor: '#1864ab',
+                edgeColor: '#339af0',
+            },
+            pink: {
+                nodeBg: '#ffffff',
+                nodeBorder: '#d6336c',
+                nodeHighlightBg: '#fff5f8',
+                nodeHighlightBorder: '#a61e4d',
+                fontColor: '#a61e4d',
+                edgeColor: '#e64980',
+            },
+            green: {
+                nodeBg: '#ffffff',
+                nodeBorder: '#2b8a3e',
+                nodeHighlightBg: '#f5fff7',
+                nodeHighlightBorder: '#1b5e20',
+                fontColor: '#1b5e20',
+                edgeColor: '#40c057',
+            }
+        };
+
+        let currentTheme = 'black';
+        let currentFontSize = 22;
+        let currentEdgeWidth = 2;
+        const MARGIN_BASE = 20;
+
+        // ===== 계수 모달 =====
+        let activeCoeffEdgeId = null;
+
+        function openCoeffModal(edgeId, x, y) {
+            const modal = document.getElementById('coeff-modal');
+            const edge = edgesDataSet.get(edgeId);
+            if (!edge) return;
+
+            activeCoeffEdgeId = edgeId;
+            document.getElementById('coeff-label').textContent = `계수: ${edge.from} → ${edge.to}`;
+            document.getElementById('coeff-input').value = edge.label || '';
+
+            // 곡선/직선 상태 반영
+            const isStraight = edge.smooth === false || (edge.smooth && edge.smooth.enabled === false);
+            document.getElementById('btn-curved').classList.toggle('active', !isStraight);
+            document.getElementById('btn-straight').classList.toggle('active', isStraight);
+
+            modal.style.display = 'block';
+            modal.style.left = Math.min(x, window.innerWidth - 220) + 'px';
+            modal.style.top = Math.min(y, window.innerHeight - 180) + 'px';
+
+            setTimeout(() => document.getElementById('coeff-input').focus(), 50);
         }
 
-        // 6. 토스트 알림 기능
-        function showToast() {
-            const toast = document.getElementById("toast");
-            toast.className = "show";
-            setTimeout(() => { toast.className = toast.className.replace("show", ""); }, 3000);
+        function closeCoeffModal() {
+            document.getElementById('coeff-modal').style.display = 'none';
+            activeCoeffEdgeId = null;
         }
 
-        function renderChart() {
-            const input = document.getElementById('inputArea').value;
-            const lines = input.split('\n').filter(l => l.trim());
-            const elements = [];
-            const nodeSet = new Set();
+        function applyCoeff() {
+            if (!activeCoeffEdgeId) return;
+            const val = document.getElementById('coeff-input').value.trim();
+            const t = THEMES[currentTheme];
+            const isStraight = document.getElementById('btn-straight').classList.contains('active');
+            
+            const upd = {
+                id: activeCoeffEdgeId,
+                label: val || undefined,
+                smooth: isStraight ? false : { type: 'continuous' },
+            };
+            if (val) {
+                upd.font = { 
+                    size: Math.max(14, currentFontSize - 4), 
+                    color: t.fontColor, 
+                    strokeWidth: 4, 
+                    strokeColor: '#ffffff',
+                    face: 'Malgun Gothic',
+                    bold: true,
+                    align: 'top'
+                };
+            } else {
+                upd.font = undefined;
+            }
+            edgesDataSet.update(upd);
+            closeCoeffModal();
+            saveState();
+        }
 
-            lines.forEach((line, i) => {
-                let fromName, toName, type, style;
-                if (line.includes('..>')) {
-                    [fromName, toName] = line.split('..>').map(s => s.trim());
-                    type = 'triangle'; style = 'dashed';
-                } else if (line.includes('>')) {
-                    [fromName, toName] = line.split('>').map(s => s.trim());
-                    type = 'triangle'; style = 'solid';
-                } else if (line.includes('.-')) {
-                    [fromName, toName] = line.split('.-').map(s => s.trim());
-                    type = 'none'; style = 'dashed';
-                } else if (line.includes('-')) {
-                    [fromName, toName] = line.split('-').map(s => s.trim());
-                    type = 'none'; style = 'solid';
-                } else { return; }
+        function setEdgeCurve(curved) {
+            document.getElementById('btn-curved').classList.toggle('active', curved);
+            document.getElementById('btn-straight').classList.toggle('active', !curved);
+        }
 
-                [fromName, toName].forEach(name => {
-                    if (name && !nodeSet.has(name)) {
-                        nodeSet.add(name);
-                        elements.push({ data: { id: name, label: name } });
-                    }
-                });
-                if (fromName && toName) {
-                    elements.push({ data: { id: `e${i}`, source: fromName, target: toName, type: type, style: style } });
+        function deleteCoeff() {
+            if (!activeCoeffEdgeId) return;
+            edgesDataSet.update({ id: activeCoeffEdgeId, label: undefined, font: undefined });
+            closeCoeffModal();
+            saveState();
+        }
+
+        // ===== 테마 =====
+        function setTheme(themeName) {
+            currentTheme = themeName;
+            document.querySelectorAll('.theme-btn').forEach(b => b.classList.remove('active'));
+            document.querySelector(`.theme-btn[data-theme="${themeName}"]`).classList.add('active');
+            applyVisuals();
+        }
+
+        // ===== 크기 =====
+        function applySize() {
+            currentFontSize = parseInt(document.getElementById('fontSlider').value);
+            currentEdgeWidth = parseFloat(document.getElementById('edgeSlider').value);
+            document.getElementById('fontVal').textContent = currentFontSize;
+            document.getElementById('edgeVal').textContent = currentEdgeWidth;
+            applyVisuals();
+        }
+
+        // ===== 비주얼 일괄 적용 =====
+        function applyVisuals() {
+            const t = THEMES[currentTheme];
+            const m = MARGIN_BASE;
+            
+            const nodeUpdates = nodesDataSet.get().map(node => ({
+                id: node.id,
+                color: { background: t.nodeBg, border: t.nodeBorder, highlight: { background: t.nodeHighlightBg, border: t.nodeHighlightBorder } },
+                font: { color: t.fontColor, size: currentFontSize, face: 'Malgun Gothic', bold: true },
+                margin: { top: m, right: m + 10, bottom: m, left: m + 10 },
+                borderWidth: 2
+            }));
+            nodesDataSet.update(nodeUpdates);
+
+            network.setOptions({
+                edges: {
+                    color: { color: t.edgeColor, highlight: t.edgeColor },
+                    width: currentEdgeWidth,
+                    smooth: { type: 'continuous' }
                 }
             });
 
-            if (!cy) {
-                cy = cytoscape({
-                    container: document.getElementById('cy'),
-                    elements: elements,
-                    style: [
-                        {
-                            selector: 'node',
-                            style: {
-                                'background-color': '#ffffff',
-                                'label': 'data(label)',
-                                'text-valign': 'center',
-                                'text-halign': 'center',
-                                'width': '140px',
-                                'height': '60px',
-                                'shape': 'rectangle',
-                                'border-width': 1.5,
-                                'border-color': '#000000',
-                                'font-weight': 'bold',
-                                'font-size': '15px',
-                                'text-wrap': 'wrap',
-                                'text-max-width': '120px'
-                            }
-                        },
-                        {
-                            selector: 'edge',
-                            style: {
-                                'width': 1.5,
-                                'line-color': '#000000',
-                                'target-arrow-color': '#000000',
-                                'target-arrow-shape': 'data(type)',
-                                'line-style': 'data(style)',
-                                'curve-style': 'bezier',
-                                'target-arrow-fill': 'filled'
-                            }
+            const edgeUpdates = edgesDataSet.get().map(e => {
+                const scaleFactor = 0.6 + currentEdgeWidth * 0.2;
+                const upd = {
+                    id: e.id,
+                    color: { color: t.edgeColor, highlight: t.edgeColor },
+                    width: currentEdgeWidth,
+                };
+                if (e.arrows && e.arrows.from && e.arrows.from.enabled) {
+                    upd.arrows = { to: { enabled: true, type: 'triangle', scaleFactor }, from: { enabled: true, type: 'triangle', scaleFactor } };
+                } else {
+                    upd.arrows = { to: { enabled: true, type: 'triangle', scaleFactor } };
+                }
+                if (e.label) {
+                    upd.font = { size: Math.max(14, currentFontSize - 4), color: t.fontColor, strokeWidth: 4, strokeColor: '#ffffff', face: 'Malgun Gothic', bold: true, align: 'top' };
+                }
+                return upd;
+            });
+            edgesDataSet.update(edgeUpdates);
+        }
+
+        // ===== 노드/엣지 생성 =====
+        function createNodeObj(name) {
+            const t = THEMES[currentTheme];
+            const m = MARGIN_BASE;
+            return { 
+                id: name, label: name, shape: 'box', 
+                margin: { top: m, right: m + 10, bottom: m, left: m + 10 }, 
+                color: { background: t.nodeBg, border: t.nodeBorder, highlight: { background: t.nodeHighlightBg, border: t.nodeHighlightBorder } },
+                font: { color: t.fontColor, size: currentFontSize, face: 'Malgun Gothic', bold: true }, 
+                borderWidth: 2
+            };
+        }
+
+        function createEdgeObj(from, to, bidirectional) {
+            const t = THEMES[currentTheme];
+            const scaleFactor = 0.6 + currentEdgeWidth * 0.2;
+            const arrows = bidirectional
+                ? { to: { enabled: true, type: 'triangle', scaleFactor }, from: { enabled: true, type: 'triangle', scaleFactor } }
+                : { to: { enabled: true, type: 'triangle', scaleFactor } };
+            const id = bidirectional ? from + '||' + to + '||bi' : from + '||' + to;
+            return { 
+                id, from, to, arrows,
+                color: { color: t.edgeColor, highlight: t.edgeColor },
+                width: currentEdgeWidth,
+                smooth: { type: 'continuous' }
+            };
+        }
+
+        // ===== 파싱 (쌍방향 지원) =====
+        function parseTextData() {
+            const lines = document.getElementById('inputText').value.split('\n');
+            let parsedNodes = new Set();
+            let parsedEdges = [];
+
+            lines.forEach(line => {
+                const trimmed = line.trim();
+                if (!trimmed) return;
+
+                // 쌍방향 체크: <->
+                const biMatch = trimmed.match(/^(.+?)\s*<->\s*(.+)$/);
+                if (biMatch) {
+                    const a = biMatch[1].trim();
+                    const b = biMatch[2].trim();
+                    if (a && b) {
+                        parsedNodes.add(a);
+                        parsedNodes.add(b);
+                        parsedEdges.push({ from: a, to: b, bi: true });
+                    }
+                    return;
+                }
+
+                // 단방향: " - " 패턴
+                const uniMatch = trimmed.match(/^(.+?)\s+-\s+(.+)$/);
+                if (uniMatch) {
+                    const a = uniMatch[1].trim();
+                    const b = uniMatch[2].trim();
+                    if (a && b) {
+                        parsedNodes.add(a);
+                        parsedNodes.add(b);
+                        parsedEdges.push({ from: a, to: b, bi: false });
+                    }
+                }
+            });
+            return { nodes: Array.from(parsedNodes), edges: parsedEdges };
+        }
+
+        // ============================================================
+        //  다양한 레이아웃 알고리즘
+        // ============================================================
+
+        // --- 공통: 순환 안전 레이어 할당 ---
+        function buildAdjacency(nodeNames, edges) {
+            const outAdj = {}, inAdj = {};
+            nodeNames.forEach(n => { outAdj[n] = []; inAdj[n] = []; });
+            edges.forEach(e => {
+                if (outAdj[e.from] && inAdj[e.to]) {
+                    outAdj[e.from].push(e.to);
+                    if (!e.bi) inAdj[e.to].push(e.from);
+                    else { inAdj[e.to].push(e.from); inAdj[e.from].push(e.to); outAdj[e.to].push(e.from); }
+                }
+            });
+            return { outAdj, inAdj };
+        }
+
+        function assignLayers(nodeNames, inAdj) {
+            const layer = {};
+            const visiting = new Set(), done = new Set();
+            function go(node) {
+                if (done.has(node)) return layer[node];
+                if (visiting.has(node)) { layer[node] = 0; return 0; }
+                visiting.add(node);
+                const parents = (inAdj[node] || []);
+                if (parents.length === 0) { layer[node] = 0; }
+                else {
+                    let mx = 0;
+                    parents.forEach(p => { mx = Math.max(mx, go(p) + 1); });
+                    layer[node] = mx;
+                }
+                visiting.delete(node);
+                done.add(node);
+                return layer[node];
+            }
+            nodeNames.forEach(n => { if (!done.has(n)) go(n); });
+            nodeNames.forEach(n => { if (layer[n] === undefined) layer[n] = 0; });
+            return layer;
+        }
+
+        // --- 겹침 해소 ---
+        function resolveOverlap(positions, nodeNames, minDx, minDy, iterations) {
+            for (let iter = 0; iter < iterations; iter++) {
+                let moved = false;
+                for (let i = 0; i < nodeNames.length; i++) {
+                    for (let j = i + 1; j < nodeNames.length; j++) {
+                        const a = positions[nodeNames[i]], b = positions[nodeNames[j]];
+                        const dx = b.x - a.x, dy = b.y - a.y;
+                        const ax = Math.abs(dx), ay = Math.abs(dy);
+                        if (ax < minDx && ay < minDy) {
+                            const px = (minDx - ax) / 2 * (dx >= 0 ? 1 : -1);
+                            const py = (minDy - ay) / 2 * (dy >= 0 ? 1 : -1);
+                            a.x -= px * 0.5; a.y -= py * 0.5;
+                            b.x += px * 0.5; b.y += py * 0.5;
+                            moved = true;
                         }
-                    ],
-                    layout: { name: 'grid', padding: 80 }
+                    }
+                }
+                nodeNames.forEach(n => {
+                    positions[n].x = Math.max(-LIMIT_X, Math.min(positions[n].x, LIMIT_X));
+                    positions[n].y = Math.max(-LIMIT_Y, Math.min(positions[n].y, LIMIT_Y));
                 });
-
-                // 7. Snap-to-Grid 기능: 드래그가 끝날 때 20px 단위로 위치 고정
-                cy.on('dragfree', 'node', function(evt){
-                    const node = evt.target;
-                    const pos = node.position();
-                    node.position({
-                        x: Math.round(pos.x / 20) * 20,
-                        y: Math.round(pos.y / 20) * 20
-                    });
-                });
-
-            } else {
-                const currentPositions = {};
-                cy.nodes().forEach(n => { currentPositions[n.id()] = n.position(); });
-                cy.json({ elements });
-                cy.nodes().forEach(n => {
-                    if (currentPositions[n.id()]) n.position(currentPositions[n.id()]);
-                });
+                if (!moved) break;
             }
         }
 
-        document.getElementById('inputArea').addEventListener('input', renderChart);
+        // ① Sugiyama 좌→우 계층 배치
+        function layoutHierarchyLR(nodeNames, edges) {
+            const { inAdj } = buildAdjacency(nodeNames, edges);
+            const layer = assignLayers(nodeNames, inAdj);
+            const layers = {};
+            let maxL = 0;
+            nodeNames.forEach(n => { const L = layer[n]; if (!layers[L]) layers[L] = []; layers[L].push(n); maxL = Math.max(maxL, L); });
 
-        function saveJPG() {
-            const a = document.createElement('a');
-            a.download = `VibeMapper_${Date.now()}.jpg`;
-            a.href = cy.jpg({ full: true, quality: 1, bg: '#ffffff' });
-            a.click();
-            showToast(); // 저장 완료 알림 실행
+            // barycenter ordering
+            const order = {};
+            if (layers[0]) layers[0].forEach((n, i) => { order[n] = i; });
+            for (let L = 1; L <= maxL; L++) {
+                if (!layers[L]) continue;
+                const bc = layers[L].map(n => {
+                    const ps = (inAdj[n] || []).filter(p => layer[p] === L - 1);
+                    if (ps.length === 0) return { n, v: 0 };
+                    return { n, v: ps.reduce((s, p) => s + (order[p] || 0), 0) / ps.length };
+                });
+                bc.sort((a, b) => a.v - b.v);
+                bc.forEach((item, i) => { order[item.n] = i; layers[L][i] = item.n; });
+            }
+
+            const positions = {};
+            const W = LIMIT_X * 2 - 100, H = LIMIT_Y * 2 - 80;
+            const numL = maxL + 1;
+            const gapX = numL > 1 ? W / (numL - 1) : 0;
+            for (let L = 0; L <= maxL; L++) {
+                if (!layers[L]) continue;
+                const arr = layers[L], cnt = arr.length;
+                const gapY = cnt > 1 ? H / (cnt - 1) : 0;
+                arr.forEach((n, i) => {
+                    positions[n] = {
+                        x: numL === 1 ? 0 : -W / 2 + L * gapX,
+                        y: cnt === 1 ? 0 : -H / 2 + i * gapY
+                    };
+                });
+            }
+            resolveOverlap(positions, nodeNames, 170, 85, 40);
+            return positions;
         }
 
-        window.onload = renderChart;
+        // ② Sugiyama 상→하 계층 배치
+        function layoutHierarchyTB(nodeNames, edges) {
+            const { inAdj } = buildAdjacency(nodeNames, edges);
+            const layer = assignLayers(nodeNames, inAdj);
+            const layers = {};
+            let maxL = 0;
+            nodeNames.forEach(n => { const L = layer[n]; if (!layers[L]) layers[L] = []; layers[L].push(n); maxL = Math.max(maxL, L); });
+
+            const order = {};
+            if (layers[0]) layers[0].forEach((n, i) => { order[n] = i; });
+            for (let L = 1; L <= maxL; L++) {
+                if (!layers[L]) continue;
+                const bc = layers[L].map(n => {
+                    const ps = (inAdj[n] || []).filter(p => layer[p] === L - 1);
+                    if (ps.length === 0) return { n, v: 0 };
+                    return { n, v: ps.reduce((s, p) => s + (order[p] || 0), 0) / ps.length };
+                });
+                bc.sort((a, b) => a.v - b.v);
+                bc.forEach((item, i) => { order[item.n] = i; layers[L][i] = item.n; });
+            }
+
+            const positions = {};
+            const W = LIMIT_X * 2 - 100, H = LIMIT_Y * 2 - 80;
+            const numL = maxL + 1;
+            const gapY = numL > 1 ? H / (numL - 1) : 0;
+            for (let L = 0; L <= maxL; L++) {
+                if (!layers[L]) continue;
+                const arr = layers[L], cnt = arr.length;
+                const gapX = cnt > 1 ? W / (cnt - 1) : 0;
+                arr.forEach((n, i) => {
+                    positions[n] = {
+                        x: cnt === 1 ? 0 : -W / 2 + i * gapX,
+                        y: numL === 1 ? 0 : -H / 2 + L * gapY
+                    };
+                });
+            }
+            resolveOverlap(positions, nodeNames, 170, 85, 40);
+            return positions;
+        }
+
+        // ③ 원형 배치
+        function layoutCircular(nodeNames, edges) {
+            const positions = {};
+            const n = nodeNames.length;
+            const rx = LIMIT_X - 80, ry = LIMIT_Y - 60;
+            nodeNames.forEach((name, i) => {
+                const angle = (2 * Math.PI * i / n) - Math.PI / 2;
+                positions[name] = {
+                    x: Math.cos(angle) * rx,
+                    y: Math.sin(angle) * ry
+                };
+            });
+            return positions;
+        }
+
+        // ④ Force-directed (간단한 Fruchterman-Reingold)
+        function layoutForceDirected(nodeNames, edges) {
+            const n = nodeNames.length;
+            const positions = {};
+            // 초기 위치: 랜덤
+            nodeNames.forEach(name => {
+                positions[name] = {
+                    x: (Math.random() - 0.5) * LIMIT_X * 1.4,
+                    y: (Math.random() - 0.5) * LIMIT_Y * 1.4
+                };
+            });
+
+            const area = (LIMIT_X * 2) * (LIMIT_Y * 2);
+            const k = Math.sqrt(area / Math.max(n, 1)) * 0.8;
+
+            for (let iter = 0; iter < 120; iter++) {
+                const disp = {};
+                nodeNames.forEach(n => { disp[n] = { x: 0, y: 0 }; });
+
+                // 반발력
+                for (let i = 0; i < n; i++) {
+                    for (let j = i + 1; j < n; j++) {
+                        const a = nodeNames[i], b = nodeNames[j];
+                        let dx = positions[a].x - positions[b].x;
+                        let dy = positions[a].y - positions[b].y;
+                        let dist = Math.sqrt(dx * dx + dy * dy) || 0.01;
+                        const force = (k * k) / dist;
+                        const fx = (dx / dist) * force;
+                        const fy = (dy / dist) * force;
+                        disp[a].x += fx; disp[a].y += fy;
+                        disp[b].x -= fx; disp[b].y -= fy;
+                    }
+                }
+
+                // 인력
+                edges.forEach(e => {
+                    if (!positions[e.from] || !positions[e.to]) return;
+                    let dx = positions[e.to].x - positions[e.from].x;
+                    let dy = positions[e.to].y - positions[e.from].y;
+                    let dist = Math.sqrt(dx * dx + dy * dy) || 0.01;
+                    const force = (dist * dist) / k;
+                    const fx = (dx / dist) * force;
+                    const fy = (dy / dist) * force;
+                    disp[e.from].x += fx * 0.4; disp[e.from].y += fy * 0.4;
+                    disp[e.to].x -= fx * 0.4; disp[e.to].y -= fy * 0.4;
+                });
+
+                const temp = Math.max(0.5, 10 * (1 - iter / 120));
+                nodeNames.forEach(name => {
+                    const d = disp[name];
+                    const len = Math.sqrt(d.x * d.x + d.y * d.y) || 0.01;
+                    positions[name].x += (d.x / len) * Math.min(len, temp);
+                    positions[name].y += (d.y / len) * Math.min(len, temp);
+                    positions[name].x = Math.max(-LIMIT_X, Math.min(positions[name].x, LIMIT_X));
+                    positions[name].y = Math.max(-LIMIT_Y, Math.min(positions[name].y, LIMIT_Y));
+                });
+            }
+
+            resolveOverlap(positions, nodeNames, 160, 80, 50);
+            return positions;
+        }
+
+        // 레이아웃 선택 (순환)
+        const LAYOUT_FUNCTIONS = [layoutHierarchyLR, layoutHierarchyTB, layoutCircular, layoutForceDirected];
+
+        function computeLayout(nodeNames, edges) {
+            const fn = LAYOUT_FUNCTIONS[layoutCounter % LAYOUT_FUNCTIONS.length];
+            layoutCounter++;
+            return fn(nodeNames, edges);
+        }
+
+        // ===== 스냅(마그넷) 시스템 =====
+        const SNAP_THRESHOLD = 18; // 캔버스 좌표 기준 스냅 거리
+        let snapLinesH = null, snapLinesV = null;
+
+        function createSnapLines() {
+            const container = document.getElementById('canvas-container');
+            if (!snapLinesH) {
+                snapLinesH = document.createElement('div');
+                snapLinesH.className = 'snap-line horizontal';
+                snapLinesH.style.display = 'none';
+                container.appendChild(snapLinesH);
+            }
+            if (!snapLinesV) {
+                snapLinesV = document.createElement('div');
+                snapLinesV.className = 'snap-line vertical';
+                snapLinesV.style.display = 'none';
+                container.appendChild(snapLinesV);
+            }
+        }
+
+        function hideSnapLines() {
+            if (snapLinesH) snapLinesH.style.display = 'none';
+            if (snapLinesV) snapLinesV.style.display = 'none';
+        }
+
+        function showSnapLineH(canvasY) {
+            if (!snapLinesH) return;
+            const domPos = network.canvasToDOM({ x: 0, y: canvasY });
+            const container = document.getElementById('canvas-container');
+            const rect = container.getBoundingClientRect();
+            snapLinesH.style.display = 'block';
+            snapLinesH.style.top = (domPos.y - rect.top) + 'px';
+        }
+
+        function showSnapLineV(canvasX) {
+            if (!snapLinesV) return;
+            const domPos = network.canvasToDOM({ x: canvasX, y: 0 });
+            const container = document.getElementById('canvas-container');
+            const rect = container.getBoundingClientRect();
+            snapLinesV.style.display = 'block';
+            snapLinesV.style.left = (domPos.x - rect.left) + 'px';
+        }
+
+        // ===== 커스텀 드래그 시스템 (vis.js 내장 드래그 완전 우회) =====
+        let customDragId = null;        // 노드 드래그 중일 때 해당 노드 ID
+        let customDragOffset = { x: 0, y: 0 };
+        let isPanningView = false;      // 빈 공간 드래그 시 뷰 패닝 중
+        let panStart = { x: 0, y: 0 };
+        let viewPosStart = { x: 0, y: 0 };
+
+        function initCustomDrag() {
+            const container = document.getElementById('canvas-container');
+            const canvasEl = container.querySelector('canvas');
+            if (!canvasEl) return;
+
+            canvasEl.addEventListener('mousedown', function(e) {
+                if (e.button !== 0) return;
+                const rect = container.getBoundingClientRect();
+                const domX = e.clientX - rect.left;
+                const domY = e.clientY - rect.top;
+
+                // 클릭 위치에 노드가 있는지 확인
+                const nodeId = network.getNodeAt({ x: domX, y: domY });
+
+                if (nodeId !== undefined) {
+                    // ── 노드 드래그 시작 ──
+                    e.preventDefault();
+                    customDragId = nodeId;
+                    const canvasPos = network.DOMtoCanvas({ x: domX, y: domY });
+                    const nodePos = network.getPositions([nodeId])[nodeId];
+                    customDragOffset.x = canvasPos.x - nodePos.x;
+                    customDragOffset.y = canvasPos.y - nodePos.y;
+                    network.selectNodes([nodeId]);
+                } else {
+                    // ── 빈 공간 드래그 → 뷰 패닝 시작 ──
+                    e.preventDefault();
+                    isPanningView = true;
+                    panStart.x = e.clientX;
+                    panStart.y = e.clientY;
+                    const vp = network.getViewPosition();
+                    viewPosStart.x = vp.x;
+                    viewPosStart.y = vp.y;
+                }
+            });
+
+            window.addEventListener('mousemove', function(e) {
+                if (customDragId !== null) {
+                    // ── 노드 드래그 중: 스냅 로직 ──
+                    const rect = container.getBoundingClientRect();
+                    const domX = e.clientX - rect.left;
+                    const domY = e.clientY - rect.top;
+                    const canvasPos = network.DOMtoCanvas({ x: domX, y: domY });
+
+                    let targetX = canvasPos.x - customDragOffset.x;
+                    let targetY = canvasPos.y - customDragOffset.y;
+
+                    // 다른 노드와 스냅 판정
+                    const allPos = network.getPositions();
+                    let didSnapX = false, didSnapY = false;
+                    let snapValX = 0, snapValY = 0;
+                    let bestDistX = SNAP_THRESHOLD, bestDistY = SNAP_THRESHOLD;
+
+                    for (const otherId in allPos) {
+                        if (otherId === customDragId) continue;
+                        const other = allPos[otherId];
+
+                        const distY = Math.abs(targetY - other.y);
+                        if (distY < bestDistY) {
+                            bestDistY = distY;
+                            snapValY = other.y;
+                            didSnapY = true;
+                        }
+
+                        const distX = Math.abs(targetX - other.x);
+                        if (distX < bestDistX) {
+                            bestDistX = distX;
+                            snapValX = other.x;
+                            didSnapX = true;
+                        }
+                    }
+
+                    if (didSnapY) targetY = snapValY;
+                    if (didSnapX) targetX = snapValX;
+
+                    // 경계 클램프
+                    targetX = Math.max(-LIMIT_X, Math.min(targetX, LIMIT_X));
+                    targetY = Math.max(-LIMIT_Y, Math.min(targetY, LIMIT_Y));
+
+                    network.moveNode(customDragId, targetX, targetY);
+
+                    // 가이드라인
+                    if (didSnapY) showSnapLineH(snapValY);
+                    else if (snapLinesH) snapLinesH.style.display = 'none';
+
+                    if (didSnapX) showSnapLineV(snapValX);
+                    else if (snapLinesV) snapLinesV.style.display = 'none';
+
+                } else if (isPanningView) {
+                    // ── 뷰 패닝 중 ──
+                    const scale = network.getScale();
+                    const dx = (e.clientX - panStart.x) / scale;
+                    const dy = (e.clientY - panStart.y) / scale;
+                    network.moveTo({
+                        position: {
+                            x: viewPosStart.x - dx,
+                            y: viewPosStart.y - dy
+                        },
+                        animation: false
+                    });
+                }
+            });
+
+            window.addEventListener('mouseup', function(e) {
+                if (customDragId !== null) {
+                    customDragId = null;
+                    hideSnapLines();
+                    saveState();
+                }
+                if (isPanningView) {
+                    isPanningView = false;
+                }
+            });
+        }
+
+        // ===== 네트워크 초기화 =====
+        function initNetwork() {
+            const container = document.getElementById('canvas-container');
+            const data = { nodes: nodesDataSet, edges: edgesDataSet };
+            const t = THEMES[currentTheme];
+            
+            const options = {
+                physics: { enabled: false },
+                edges: { 
+                    color: { color: t.edgeColor, highlight: t.edgeColor },
+                    smooth: { type: 'continuous' }, 
+                    width: currentEdgeWidth 
+                },
+                interaction: {
+                    hover: true,
+                    dragNodes: false, // 커스텀 드래그로 대체
+                    dragView: false   // 노드 드래그와 충돌 방지 → 뷰 이동도 커스텀으로 처리
+                }
+            };
+
+            network = new vis.Network(container, data, options);
+            createSnapLines();
+
+            // vis.js 렌더링 완료 후 커스텀 드래그 초기화
+            network.once("afterDrawing", function() {
+                initCustomDrag();
+            });
+
+            // 엣지 클릭 → 계수 입력
+            network.on("click", function (params) {
+                if (activeCoeffEdgeId) return;
+                if (customDragId !== null) return; // 드래그 중 클릭 무시
+                
+                if (params.edges.length > 0 && params.nodes.length === 0) {
+                    const edgeId = params.edges[0];
+                    openCoeffModal(edgeId, params.event.center.x, params.event.center.y);
+                }
+            });
+        }
+
+        // ===== 추가/생성 =====
+        function addOnly() {
+            const parsed = parseTextData();
+            let hasNew = false;
+
+            parsed.nodes.forEach(name => {
+                if (!nodesDataSet.get(name)) { nodesDataSet.add(createNodeObj(name)); hasNew = true; }
+            });
+            parsed.edges.forEach(edge => {
+                const edgeId = edge.bi ? edge.from + '||' + edge.to + '||bi' : edge.from + '||' + edge.to;
+                if (!edgesDataSet.get(edgeId)) { edgesDataSet.add(createEdgeObj(edge.from, edge.to, edge.bi)); hasNew = true; }
+            });
+
+            if (hasNew) {
+                const allNodes = nodesDataSet.getIds();
+                const allEdges = edgesDataSet.get().map(e => ({ from: e.from, to: e.to, bi: !!(e.arrows && e.arrows.from && e.arrows.from.enabled) }));
+                const positions = computeLayout(allNodes, allEdges);
+
+                const existingPositions = network.getPositions();
+                const updates = [];
+                for (const name in positions) {
+                    if (!existingPositions[name] || (existingPositions[name].x === 0 && existingPositions[name].y === 0)) {
+                        updates.push({ id: name, x: positions[name].x, y: positions[name].y });
+                    }
+                }
+                if (updates.length > 0) nodesDataSet.update(updates);
+                centerNetwork();
+                saveState();
+            } else {
+                alert("추가할 새로운 변인이나 화살표가 없습니다.");
+            }
+        }
+
+        function generateRandom() {
+            const parsed = parseTextData();
+            nodesDataSet.clear(); 
+            edgesDataSet.clear();
+            
+            if (parsed.nodes.length === 0) {
+                saveState();
+                return;
+            }
+
+            const positions = computeLayout(parsed.nodes, parsed.edges);
+
+            const nodeObjs = parsed.nodes.map(name => {
+                const obj = createNodeObj(name);
+                obj.x = positions[name].x;
+                obj.y = positions[name].y;
+                return obj;
+            });
+
+            nodesDataSet.add(nodeObjs);
+            edgesDataSet.add(parsed.edges.map(e => createEdgeObj(e.from, e.to, e.bi)));
+            
+            centerNetwork();
+            saveState();
+        }
+
+        // ===== 히스토리 =====
+        function saveState() {
+            if (isRestoring || !network) return;
+            const nodeIds = nodesDataSet.getIds();
+            const positions = nodeIds.length > 0 ? network.getPositions(nodeIds) : {};
+            
+            const currentNodes = nodesDataSet.get().map(node => {
+                const p = positions[node.id] || { x: 0, y: 0 };
+                return { ...node, x: p.x, y: p.y };
+            });
+            const currentEdges = edgesDataSet.get();
+            const currentText = document.getElementById('inputText').value;
+
+            historyStack = historyStack.slice(0, historyIndex + 1);
+            historyStack.push({
+                nodes: JSON.parse(JSON.stringify(currentNodes)),
+                edges: JSON.parse(JSON.stringify(currentEdges)),
+                text: currentText,
+                theme: currentTheme,
+                fontSize: currentFontSize,
+                edgeWidth: currentEdgeWidth
+            });
+            historyIndex++;
+        }
+
+        function undo() { if (historyIndex > 0) { historyIndex--; restoreState(historyStack[historyIndex]); } }
+        function redo() { if (historyIndex < historyStack.length - 1) { historyIndex++; restoreState(historyStack[historyIndex]); } }
+
+        function restoreState(state) {
+            isRestoring = true;
+            document.getElementById('inputText').value = state.text;
+            network.setOptions({ physics: { enabled: false } });
+
+            nodesDataSet.clear(); edgesDataSet.clear();
+            nodesDataSet.add(state.nodes); edgesDataSet.add(state.edges);
+
+            if (state.theme) {
+                currentTheme = state.theme;
+                document.querySelectorAll('.theme-btn').forEach(b => b.classList.remove('active'));
+                const btn = document.querySelector(`.theme-btn[data-theme="${state.theme}"]`);
+                if (btn) btn.classList.add('active');
+            }
+            currentFontSize = state.fontSize || 22;
+            currentEdgeWidth = state.edgeWidth || 2;
+            document.getElementById('fontSlider').value = currentFontSize;
+            document.getElementById('edgeSlider').value = currentEdgeWidth;
+            document.getElementById('fontVal').textContent = currentFontSize;
+            document.getElementById('edgeVal').textContent = currentEdgeWidth;
+
+            setTimeout(() => { isRestoring = false; }, 100);
+        }
+
+        function centerNetwork() {
+            if (network) network.fit({ animation: { duration: 500, easingFunction: "easeInOutQuad" } });
+        }
+
+        function saveAsJPG() {
+            const canvas = document.querySelector('#canvas-container canvas');
+            if (!canvas) return;
+
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = canvas.width; tempCanvas.height = canvas.height;
+            const ctx = tempCanvas.getContext('2d');
+
+            ctx.fillStyle = '#ffffff'; 
+            ctx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+            ctx.drawImage(canvas, 0, 0);
+
+            const link = document.createElement('a');
+            link.download = '인과지도_모형.jpg';
+            link.href = tempCanvas.toDataURL('image/jpeg', 1.0);
+            document.body.appendChild(link); link.click(); document.body.removeChild(link);
+        }
+
+        // 모달 바깥 클릭 시 닫기
+        document.addEventListener('click', function(e) {
+            const modal = document.getElementById('coeff-modal');
+            if (modal.style.display === 'block' && !modal.contains(e.target)) {
+                // 약간의 딜레이: vis-network click 이벤트와 충돌 방지
+                setTimeout(() => {
+                    if (modal.style.display === 'block' && !modal.contains(document.activeElement)) {
+                        closeCoeffModal();
+                    }
+                }, 100);
+            }
+        });
+
+        // Enter로 계수 적용
+        document.addEventListener('keydown', function(e) {
+            if (activeCoeffEdgeId && e.key === 'Enter') {
+                e.preventDefault();
+                applyCoeff();
+                return;
+            }
+            if (activeCoeffEdgeId && e.key === 'Escape') {
+                e.preventDefault();
+                closeCoeffModal();
+                return;
+            }
+            if (e.ctrlKey && e.key === 'z') { e.preventDefault(); undo(); }
+            if (e.ctrlKey && (e.key === 'y' || e.key === 'Z')) { e.preventDefault(); redo(); }
+        });
+
+        window.onload = function() {
+            initNetwork(); 
+            generateRandom(); 
+        };
     </script>
 </body>
 </html>
