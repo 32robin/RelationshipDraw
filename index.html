@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title> 변인 모형 생성기 v1.0.0</title>
+    <title>변인 모형 생성기 v0.1.5</title>
     <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
     <style>
         * { box-sizing: border-box; }
@@ -66,6 +66,17 @@
         .hbtn.primary { background: #212529; color: white; border: 1px solid #212529; }
         .hbtn.primary:hover { background: #495057; }
         .hbtn-hist { font-size: 12px; padding: 5px 10px; background: #f8f9fa; }
+        
+        .hbtn.toggle-active {
+            background: #212529;
+            color: white;
+            border-color: #212529;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.15);
+        }
+        .hbtn.toggle-active:hover {
+            background: #343a40;
+            border-color: #343a40;
+        }
 
         .theme-btn {
             width: 28px; height: 28px;
@@ -126,7 +137,7 @@
         #main-content {
             display: flex;
             flex-grow: 1;
-            height: calc(100vh - 56px - 26px);
+            height: calc(100vh - 56px - 33px);
         }
         
         #left-panel { 
@@ -139,16 +150,16 @@
             flex-direction: column; 
         }
         .input-guide {
-            font-size: 13px;
+            font-size: 15px;
             color: #6c757d;
             margin: 0 0 6px 0;
-            line-height: 1.5;
+            line-height: 1.6;
         }
         .input-guide code {
             background: #f1f3f5;
-            padding: 1px 5px;
+            padding: 2px 7px;
             border-radius: 3px;
-            font-size: 12px;
+            font-size: 14px;
             font-family: 'Consolas', monospace;
             color: #495057;
         }
@@ -201,7 +212,6 @@
             position: relative;
         }
 
-        /* 스냅 가이드라인 */
         .snap-line {
             position: absolute;
             background: #339af0;
@@ -209,16 +219,9 @@
             z-index: 5;
             pointer-events: none;
         }
-        .snap-line.horizontal {
-            height: 1px;
-            left: 0; right: 0;
-        }
-        .snap-line.vertical {
-            width: 1px;
-            top: 0; bottom: 0;
-        }
+        .snap-line.horizontal { height: 1px; left: 0; right: 0; }
+        .snap-line.vertical { width: 1px; top: 0; bottom: 0; }
 
-        /* 계수 입력 모달 */
         #coeff-modal {
             display: none;
             position: fixed;
@@ -263,7 +266,6 @@
             font-weight: 600;
         }
         #coeff-modal .mbtn-ok { background: #212529; color: #fff; border-color: #212529; }
-        #coeff-modal .mbtn-del { background: #fff; color: #e03131; border-color: #e03131; }
         #coeff-modal .mbtn-cancel { background: #f8f9fa; color: #495057; }
 
         .line-toggle {
@@ -287,20 +289,18 @@
             transition: all 0.12s;
         }
         .line-toggle button:first-child { border-right: 1px solid #ced4da; }
-        .line-toggle button.active {
-            background: #212529;
-            color: #fff;
-        }
+        .line-toggle button.active { background: #212529; color: #fff; }
         .line-toggle button:hover:not(.active) { background: #e9ecef; }
 
         #header-tip {
             text-align: center;
-            font-size: 12px;
-            color: #868e96;
+            font-size: 15px;
+            color: #6c757d;
             background: #f8f9fa;
-            padding: 4px 0;
+            padding: 7px 0;
             border-bottom: 1px solid #e9ecef;
             flex-shrink: 0;
+            font-weight: 500;
         }
     </style>
 </head>
@@ -308,7 +308,7 @@
 
     <div id="header">
         <div id="header-left">
-            <span id="header-title">인과지도 모형 생성기</span>
+            <span id="header-title">변인 모형 생성기</span>
             <button class="hbtn hbtn-hist" onclick="undo()" title="Ctrl+Z">⟲ 뒤로</button>
             <button class="hbtn hbtn-hist" onclick="redo()" title="Ctrl+Y">⟳ 앞으로</button>
         </div>
@@ -326,14 +326,26 @@
                 <input type="range" class="size-slider" id="fontSlider" min="14" max="36" value="22" oninput="applySize()">
                 <span class="size-val" id="fontVal">22</span>
             </div>
+            
+            <button id="btn-bold" class="hbtn toggle-active" onclick="toggleBold()" title="캔버스의 모든 글자를 굵게 만듭니다">B 볼드체</button>
+            <button id="btn-large" class="hbtn" onclick="toggleLargeText()" title="노드 박스 크기는 유지하고 글자만 1.2배 키웁니다">더 큰 글자</button>
+
             <div class="size-group">
                 <span class="size-label">화살표</span>
                 <input type="range" class="size-slider" id="edgeSlider" min="1" max="5" value="2" step="0.5" oninput="applySize()">
                 <span class="size-val" id="edgeVal">2</span>
             </div>
+            <div class="size-group">
+                <span class="size-label">캔버스 여백</span>
+                <input type="range" class="size-slider" id="marginSlider" min="0" max="150" value="20" oninput="applyCanvasMargin()">
+                <span class="size-val" id="marginVal" style="width:28px;">20</span>
+            </div>
         </div>
         <div id="header-right">
             <button class="hbtn" onclick="centerNetwork()">중앙 정렬</button>
+            <button class="hbtn" onclick="saveProject()">💾 저장</button>
+            <button class="hbtn" onclick="document.getElementById('loadFile').click()">📂 불러오기</button>
+            <input type="file" id="loadFile" accept=".json" style="display:none" onchange="loadProject(event)">
             <button class="hbtn primary" onclick="saveAsJPG()">JPG 저장</button>
         </div>
     </div>
@@ -342,7 +354,7 @@
 
     <div id="main-content">
         <div id="left-panel">
-            <h3 style="margin-top:0; color: #212529;">시스템 변인 입력</h3>
+            <h3 style="margin-top:0; color: #212529;">변인 관계 입력창</h3>
             <p class="input-guide">
                 단방향: <code>원인 - 결과</code><br>
                 쌍방향: <code>변인1 &lt;-&gt; 변인2</code>
@@ -367,7 +379,6 @@
         </div>
     </div>
 
-    <!-- 계수 입력 모달 -->
     <div id="coeff-modal">
         <label id="coeff-label">계수 입력</label>
         <input type="text" id="coeff-input" placeholder="예: 0.85, -0.3">
@@ -376,7 +387,6 @@
             <button id="btn-straight" onclick="setEdgeCurve(false)">직선</button>
         </div>
         <div class="modal-btns">
-            <button class="mbtn-del" onclick="deleteCoeff()">삭제</button>
             <button class="mbtn-cancel" onclick="closeCoeffModal()">취소</button>
             <button class="mbtn-ok" onclick="applyCoeff()">적용</button>
         </div>
@@ -391,51 +401,101 @@
         let historyIndex = -1;
         let isRestoring = false;
 
-        const LIMIT_X = 520; 
-        const LIMIT_Y = 360;
+        let canvasMargin = 20;    
+        let isTextBold = true;    
+        let isTextLarger = false;
+        const LARGE_SCALE = 1.2; // "더 큰 글자" 배율
 
-        let layoutCounter = 0; // 레이아웃 종류 순환용
+        const measureCtx = document.createElement('canvas').getContext('2d');
 
-        // ===== 테마 정의 (하늘/분홍/초록: 배경 흰색, 테두리+글씨 컬러) =====
-        const THEMES = {
-            black: {
-                nodeBg: '#ffffff',
-                nodeBorder: '#000000',
-                nodeHighlightBg: '#f8f9fa',
-                nodeHighlightBorder: '#000000',
-                fontColor: '#000000',
-                edgeColor: '#000000',
-            },
-            sky: {
-                nodeBg: '#ffffff',
-                nodeBorder: '#1c7ed6',
-                nodeHighlightBg: '#f0f7ff',
-                nodeHighlightBorder: '#1864ab',
-                fontColor: '#1864ab',
-                edgeColor: '#339af0',
-            },
-            pink: {
-                nodeBg: '#ffffff',
-                nodeBorder: '#d6336c',
-                nodeHighlightBg: '#fff5f8',
-                nodeHighlightBorder: '#a61e4d',
-                fontColor: '#a61e4d',
-                edgeColor: '#e64980',
-            },
-            green: {
-                nodeBg: '#ffffff',
-                nodeBorder: '#2b8a3e',
-                nodeHighlightBg: '#f5fff7',
-                nodeHighlightBorder: '#1b5e20',
-                fontColor: '#1b5e20',
-                edgeColor: '#40c057',
+        function getViewBounds() {
+            const container = document.getElementById('canvas-container');
+            const w = container.clientWidth;
+            const h = container.clientHeight;
+            const margin = canvasMargin;
+            const topLeft = network.DOMtoCanvas({ x: margin, y: margin });
+            const bottomRight = network.DOMtoCanvas({ x: w - margin, y: h - margin });
+            return { minX: topLeft.x, minY: topLeft.y, maxX: bottomRight.x, maxY: bottomRight.y };
+        }
+
+        function getLayoutBounds() {
+            const base = 500;
+            const ratio = Math.max(0, 1 - canvasMargin / 150);
+            return { halfW: base * ratio, halfH: base * 0.7 * ratio };
+        }
+
+        function applyCanvasMargin() {
+            canvasMargin = parseInt(document.getElementById('marginSlider').value);
+            document.getElementById('marginVal').textContent = canvasMargin;
+            if (!network) return;
+            const nodeIds = nodesDataSet.getIds();
+            if (nodeIds.length === 0) return;
+            const bounds = getViewBounds();
+            const positions = network.getPositions(nodeIds);
+            const updates = [];
+            for (const id of nodeIds) {
+                const p = positions[id];
+                const cx = Math.max(bounds.minX, Math.min(p.x, bounds.maxX));
+                const cy = Math.max(bounds.minY, Math.min(p.y, bounds.maxY));
+                if (p.x !== cx || p.y !== cy) updates.push({ id, x: cx, y: cy });
             }
+            if (updates.length > 0) updates.forEach(u => network.moveNode(u.id, u.x, u.y));
+        }
+
+        let layoutCounter = 0;
+
+        const THEMES = {
+            black: { nodeBg: '#ffffff', nodeBorder: '#000000', nodeHighlightBg: '#f8f9fa', nodeHighlightBorder: '#000000', fontColor: '#000000', edgeColor: '#000000' },
+            sky: { nodeBg: '#ffffff', nodeBorder: '#1c7ed6', nodeHighlightBg: '#f0f7ff', nodeHighlightBorder: '#1864ab', fontColor: '#1864ab', edgeColor: '#339af0' },
+            pink: { nodeBg: '#ffffff', nodeBorder: '#d6336c', nodeHighlightBg: '#fff5f8', nodeHighlightBorder: '#a61e4d', fontColor: '#a61e4d', edgeColor: '#e64980' },
+            green: { nodeBg: '#ffffff', nodeBorder: '#2b8a3e', nodeHighlightBg: '#f5fff7', nodeHighlightBorder: '#1b5e20', fontColor: '#1b5e20', edgeColor: '#40c057' }
         };
 
         let currentTheme = 'black';
         let currentFontSize = 22;
         let currentEdgeWidth = 2;
         const MARGIN_BASE = 20;
+
+        // ===== 노드 스타일: "더 큰 글자" 시 박스 크기 유지 =====
+        function getExactNodeStyle(rawName) {
+            const t = THEMES[currentTheme];
+            const baseFontSize = currentFontSize;
+            const largeFontSize = Math.round(currentFontSize * LARGE_SCALE);
+            const displayFontSize = isTextLarger ? largeFontSize : baseFontSize;
+            
+            const baseMarginTB = MARGIN_BASE;
+            const baseMarginLR = MARGIN_BASE + 10;
+            
+            const weight = isTextBold ? 'bold ' : 'normal ';
+            
+            let mTB = baseMarginTB;
+            let mLR = baseMarginLR;
+            
+            if (isTextLarger) {
+                // 기준 크기로 텍스트 폭/높이 측정
+                measureCtx.font = weight + baseFontSize + 'px "Malgun Gothic"';
+                const wBase = measureCtx.measureText(rawName).width;
+                
+                // 커진 크기로 텍스트 폭/높이 측정
+                measureCtx.font = weight + largeFontSize + 'px "Malgun Gothic"';
+                const wLarge = measureCtx.measureText(rawName).width;
+                
+                // 폭 차이만큼 좌우 마진 줄이기, 높이 차이만큼 상하 마진 줄이기
+                const diffW = wLarge - wBase;
+                const diffH = largeFontSize - baseFontSize;
+                
+                mTB = Math.max(2, baseMarginTB - Math.ceil(diffH / 2));
+                mLR = Math.max(2, baseMarginLR - Math.ceil(diffW / 2));
+            }
+
+            return {
+                label: isTextBold ? `<b>${rawName}</b>` : rawName,
+                color: { background: t.nodeBg, border: t.nodeBorder, highlight: { background: t.nodeHighlightBg, border: t.nodeHighlightBorder } },
+                font: { multi: 'html', color: t.fontColor, size: displayFontSize, face: 'Malgun Gothic' },
+                margin: { top: mTB, right: mLR, bottom: mTB, left: mLR },
+                borderWidth: 2
+            };
+        }
 
         // ===== 계수 모달 =====
         let activeCoeffEdgeId = null;
@@ -447,9 +507,11 @@
 
             activeCoeffEdgeId = edgeId;
             document.getElementById('coeff-label').textContent = `계수: ${edge.from} → ${edge.to}`;
-            document.getElementById('coeff-input').value = edge.label || '';
+            
+            let cleanLabel = edge.rawLabel || edge.label || '';
+            cleanLabel = cleanLabel.replace(/<\/?b>/g, '');
+            document.getElementById('coeff-input').value = cleanLabel;
 
-            // 곡선/직선 상태 반영
             const isStraight = edge.smooth === false || (edge.smooth && edge.smooth.enabled === false);
             document.getElementById('btn-curved').classList.toggle('active', !isStraight);
             document.getElementById('btn-straight').classList.toggle('active', isStraight);
@@ -474,21 +536,24 @@
             
             const upd = {
                 id: activeCoeffEdgeId,
-                label: val || undefined,
+                rawLabel: val || undefined,
+                label: val ? (isTextBold ? `<b>${val}</b>` : val) : undefined,
                 smooth: isStraight ? false : { type: 'continuous' },
             };
             if (val) {
                 upd.font = { 
+                    multi: 'html',
                     size: Math.max(14, currentFontSize - 4), 
                     color: t.fontColor, 
                     strokeWidth: 4, 
                     strokeColor: '#ffffff',
                     face: 'Malgun Gothic',
-                    bold: true,
                     align: 'top'
                 };
             } else {
                 upd.font = undefined;
+                upd.label = undefined;
+                upd.rawLabel = undefined;
             }
             edgesDataSet.update(upd);
             closeCoeffModal();
@@ -500,14 +565,24 @@
             document.getElementById('btn-straight').classList.toggle('active', !curved);
         }
 
-        function deleteCoeff() {
-            if (!activeCoeffEdgeId) return;
-            edgesDataSet.update({ id: activeCoeffEdgeId, label: undefined, font: undefined });
-            closeCoeffModal();
+        function toggleBold() {
+            isTextBold = !isTextBold;
+            const btn = document.getElementById('btn-bold');
+            if (isTextBold) btn.classList.add('toggle-active');
+            else btn.classList.remove('toggle-active');
+            applyVisuals();
             saveState();
         }
 
-        // ===== 테마 =====
+        function toggleLargeText() {
+            isTextLarger = !isTextLarger;
+            const btn = document.getElementById('btn-large');
+            if (isTextLarger) btn.classList.add('toggle-active');
+            else btn.classList.remove('toggle-active');
+            applyVisuals();
+            saveState();
+        }
+
         function setTheme(themeName) {
             currentTheme = themeName;
             document.querySelectorAll('.theme-btn').forEach(b => b.classList.remove('active'));
@@ -515,7 +590,6 @@
             applyVisuals();
         }
 
-        // ===== 크기 =====
         function applySize() {
             currentFontSize = parseInt(document.getElementById('fontSlider').value);
             currentEdgeWidth = parseFloat(document.getElementById('edgeSlider').value);
@@ -524,18 +598,13 @@
             applyVisuals();
         }
 
-        // ===== 비주얼 일괄 적용 =====
         function applyVisuals() {
             const t = THEMES[currentTheme];
-            const m = MARGIN_BASE;
             
-            const nodeUpdates = nodesDataSet.get().map(node => ({
-                id: node.id,
-                color: { background: t.nodeBg, border: t.nodeBorder, highlight: { background: t.nodeHighlightBg, border: t.nodeHighlightBorder } },
-                font: { color: t.fontColor, size: currentFontSize, face: 'Malgun Gothic', bold: true },
-                margin: { top: m, right: m + 10, bottom: m, left: m + 10 },
-                borderWidth: 2
-            }));
+            const nodeUpdates = nodesDataSet.get().map(node => {
+                const style = getExactNodeStyle(node.id);
+                return { id: node.id, ...style };
+            });
             nodesDataSet.update(nodeUpdates);
 
             network.setOptions({
@@ -548,35 +617,27 @@
 
             const edgeUpdates = edgesDataSet.get().map(e => {
                 const scaleFactor = 0.6 + currentEdgeWidth * 0.2;
-                const upd = {
-                    id: e.id,
-                    color: { color: t.edgeColor, highlight: t.edgeColor },
-                    width: currentEdgeWidth,
-                };
+                const upd = { id: e.id, color: { color: t.edgeColor, highlight: t.edgeColor }, width: currentEdgeWidth };
                 if (e.arrows && e.arrows.from && e.arrows.from.enabled) {
                     upd.arrows = { to: { enabled: true, type: 'triangle', scaleFactor }, from: { enabled: true, type: 'triangle', scaleFactor } };
                 } else {
                     upd.arrows = { to: { enabled: true, type: 'triangle', scaleFactor } };
                 }
-                if (e.label) {
-                    upd.font = { size: Math.max(14, currentFontSize - 4), color: t.fontColor, strokeWidth: 4, strokeColor: '#ffffff', face: 'Malgun Gothic', bold: true, align: 'top' };
+                
+                if (e.rawLabel || e.label) {
+                    const rLabel = e.rawLabel || e.label.replace(/<\/?b>/g, '');
+                    upd.rawLabel = rLabel;
+                    upd.label = isTextBold ? `<b>${rLabel}</b>` : rLabel;
+                    upd.font = { multi: 'html', size: Math.max(14, currentFontSize - 4), color: t.fontColor, strokeWidth: 4, strokeColor: '#ffffff', face: 'Malgun Gothic', align: 'top' };
                 }
                 return upd;
             });
             edgesDataSet.update(edgeUpdates);
         }
 
-        // ===== 노드/엣지 생성 =====
         function createNodeObj(name) {
-            const t = THEMES[currentTheme];
-            const m = MARGIN_BASE;
-            return { 
-                id: name, label: name, shape: 'box', 
-                margin: { top: m, right: m + 10, bottom: m, left: m + 10 }, 
-                color: { background: t.nodeBg, border: t.nodeBorder, highlight: { background: t.nodeHighlightBg, border: t.nodeHighlightBorder } },
-                font: { color: t.fontColor, size: currentFontSize, face: 'Malgun Gothic', bold: true }, 
-                borderWidth: 2
-            };
+            const style = getExactNodeStyle(name);
+            return { id: name, shape: 'box', ...style };
         }
 
         function createEdgeObj(from, to, bidirectional) {
@@ -586,15 +647,9 @@
                 ? { to: { enabled: true, type: 'triangle', scaleFactor }, from: { enabled: true, type: 'triangle', scaleFactor } }
                 : { to: { enabled: true, type: 'triangle', scaleFactor } };
             const id = bidirectional ? from + '||' + to + '||bi' : from + '||' + to;
-            return { 
-                id, from, to, arrows,
-                color: { color: t.edgeColor, highlight: t.edgeColor },
-                width: currentEdgeWidth,
-                smooth: { type: 'continuous' }
-            };
+            return { id, from, to, arrows, color: { color: t.edgeColor, highlight: t.edgeColor }, width: currentEdgeWidth, smooth: { type: 'continuous' } };
         }
 
-        // ===== 파싱 (쌍방향 지원) =====
         function parseTextData() {
             const lines = document.getElementById('inputText').value.split('\n');
             let parsedNodes = new Set();
@@ -604,39 +659,23 @@
                 const trimmed = line.trim();
                 if (!trimmed) return;
 
-                // 쌍방향 체크: <->
                 const biMatch = trimmed.match(/^(.+?)\s*<->\s*(.+)$/);
                 if (biMatch) {
-                    const a = biMatch[1].trim();
-                    const b = biMatch[2].trim();
-                    if (a && b) {
-                        parsedNodes.add(a);
-                        parsedNodes.add(b);
-                        parsedEdges.push({ from: a, to: b, bi: true });
-                    }
+                    const a = biMatch[1].trim(); const b = biMatch[2].trim();
+                    if (a && b) { parsedNodes.add(a); parsedNodes.add(b); parsedEdges.push({ from: a, to: b, bi: true }); }
                     return;
                 }
 
-                // 단방향: " - " 패턴
                 const uniMatch = trimmed.match(/^(.+?)\s+-\s+(.+)$/);
                 if (uniMatch) {
-                    const a = uniMatch[1].trim();
-                    const b = uniMatch[2].trim();
-                    if (a && b) {
-                        parsedNodes.add(a);
-                        parsedNodes.add(b);
-                        parsedEdges.push({ from: a, to: b, bi: false });
-                    }
+                    const a = uniMatch[1].trim(); const b = uniMatch[2].trim();
+                    if (a && b) { parsedNodes.add(a); parsedNodes.add(b); parsedEdges.push({ from: a, to: b, bi: false }); }
                 }
             });
             return { nodes: Array.from(parsedNodes), edges: parsedEdges };
         }
 
-        // ============================================================
-        //  다양한 레이아웃 알고리즘
-        // ============================================================
-
-        // --- 공통: 순환 안전 레이어 할당 ---
+        // --- 레이아웃 알고리즘 ---
         function buildAdjacency(nodeNames, edges) {
             const outAdj = {}, inAdj = {};
             nodeNames.forEach(n => { outAdj[n] = []; inAdj[n] = []; });
@@ -659,13 +698,8 @@
                 visiting.add(node);
                 const parents = (inAdj[node] || []);
                 if (parents.length === 0) { layer[node] = 0; }
-                else {
-                    let mx = 0;
-                    parents.forEach(p => { mx = Math.max(mx, go(p) + 1); });
-                    layer[node] = mx;
-                }
-                visiting.delete(node);
-                done.add(node);
+                else { let mx = 0; parents.forEach(p => { mx = Math.max(mx, go(p) + 1); }); layer[node] = mx; }
+                visiting.delete(node); done.add(node);
                 return layer[node];
             }
             nodeNames.forEach(n => { if (!done.has(n)) go(n); });
@@ -673,8 +707,8 @@
             return layer;
         }
 
-        // --- 겹침 해소 ---
         function resolveOverlap(positions, nodeNames, minDx, minDy, iterations) {
+            const lb = getLayoutBounds();
             for (let iter = 0; iter < iterations; iter++) {
                 let moved = false;
                 for (let i = 0; i < nodeNames.length; i++) {
@@ -685,236 +719,95 @@
                         if (ax < minDx && ay < minDy) {
                             const px = (minDx - ax) / 2 * (dx >= 0 ? 1 : -1);
                             const py = (minDy - ay) / 2 * (dy >= 0 ? 1 : -1);
-                            a.x -= px * 0.5; a.y -= py * 0.5;
-                            b.x += px * 0.5; b.y += py * 0.5;
+                            a.x -= px * 0.5; a.y -= py * 0.5; b.x += px * 0.5; b.y += py * 0.5;
                             moved = true;
                         }
                     }
                 }
                 nodeNames.forEach(n => {
-                    positions[n].x = Math.max(-LIMIT_X, Math.min(positions[n].x, LIMIT_X));
-                    positions[n].y = Math.max(-LIMIT_Y, Math.min(positions[n].y, LIMIT_Y));
+                    positions[n].x = Math.max(-lb.halfW, Math.min(positions[n].x, lb.halfW));
+                    positions[n].y = Math.max(-lb.halfH, Math.min(positions[n].y, lb.halfH));
                 });
                 if (!moved) break;
             }
         }
 
-        // ① Sugiyama 좌→우 계층 배치
         function layoutHierarchyLR(nodeNames, edges) {
             const { inAdj } = buildAdjacency(nodeNames, edges);
             const layer = assignLayers(nodeNames, inAdj);
-            const layers = {};
-            let maxL = 0;
+            const layers = {}; let maxL = 0;
             nodeNames.forEach(n => { const L = layer[n]; if (!layers[L]) layers[L] = []; layers[L].push(n); maxL = Math.max(maxL, L); });
-
-            // barycenter ordering
             const order = {};
             if (layers[0]) layers[0].forEach((n, i) => { order[n] = i; });
             for (let L = 1; L <= maxL; L++) {
                 if (!layers[L]) continue;
-                const bc = layers[L].map(n => {
-                    const ps = (inAdj[n] || []).filter(p => layer[p] === L - 1);
-                    if (ps.length === 0) return { n, v: 0 };
-                    return { n, v: ps.reduce((s, p) => s + (order[p] || 0), 0) / ps.length };
-                });
-                bc.sort((a, b) => a.v - b.v);
-                bc.forEach((item, i) => { order[item.n] = i; layers[L][i] = item.n; });
+                const bc = layers[L].map(n => { const ps = (inAdj[n] || []).filter(p => layer[p] === L - 1); if (ps.length === 0) return { n, v: 0 }; return { n, v: ps.reduce((s, p) => s + (order[p] || 0), 0) / ps.length }; });
+                bc.sort((a, b) => a.v - b.v); bc.forEach((item, i) => { order[item.n] = i; layers[L][i] = item.n; });
             }
-
             const positions = {};
-            const W = LIMIT_X * 2 - 100, H = LIMIT_Y * 2 - 80;
-            const numL = maxL + 1;
-            const gapX = numL > 1 ? W / (numL - 1) : 0;
-            for (let L = 0; L <= maxL; L++) {
-                if (!layers[L]) continue;
-                const arr = layers[L], cnt = arr.length;
-                const gapY = cnt > 1 ? H / (cnt - 1) : 0;
-                arr.forEach((n, i) => {
-                    positions[n] = {
-                        x: numL === 1 ? 0 : -W / 2 + L * gapX,
-                        y: cnt === 1 ? 0 : -H / 2 + i * gapY
-                    };
-                });
-            }
-            resolveOverlap(positions, nodeNames, 170, 85, 40);
-            return positions;
+            const lb = getLayoutBounds(); const W = lb.halfW * 2, H = lb.halfH * 2;
+            const numL = maxL + 1; const gapX = numL > 1 ? W / (numL - 1) : 0;
+            for (let L = 0; L <= maxL; L++) { if (!layers[L]) continue; const arr = layers[L], cnt = arr.length; const gapY = cnt > 1 ? H / (cnt - 1) : 0; arr.forEach((n, i) => { positions[n] = { x: numL === 1 ? 0 : -W / 2 + L * gapX, y: cnt === 1 ? 0 : -H / 2 + i * gapY }; }); }
+            resolveOverlap(positions, nodeNames, 170, 85, 40); return positions;
         }
 
-        // ② Sugiyama 상→하 계층 배치
         function layoutHierarchyTB(nodeNames, edges) {
             const { inAdj } = buildAdjacency(nodeNames, edges);
             const layer = assignLayers(nodeNames, inAdj);
-            const layers = {};
-            let maxL = 0;
+            const layers = {}; let maxL = 0;
             nodeNames.forEach(n => { const L = layer[n]; if (!layers[L]) layers[L] = []; layers[L].push(n); maxL = Math.max(maxL, L); });
-
             const order = {};
             if (layers[0]) layers[0].forEach((n, i) => { order[n] = i; });
             for (let L = 1; L <= maxL; L++) {
                 if (!layers[L]) continue;
-                const bc = layers[L].map(n => {
-                    const ps = (inAdj[n] || []).filter(p => layer[p] === L - 1);
-                    if (ps.length === 0) return { n, v: 0 };
-                    return { n, v: ps.reduce((s, p) => s + (order[p] || 0), 0) / ps.length };
-                });
-                bc.sort((a, b) => a.v - b.v);
-                bc.forEach((item, i) => { order[item.n] = i; layers[L][i] = item.n; });
+                const bc = layers[L].map(n => { const ps = (inAdj[n] || []).filter(p => layer[p] === L - 1); if (ps.length === 0) return { n, v: 0 }; return { n, v: ps.reduce((s, p) => s + (order[p] || 0), 0) / ps.length }; });
+                bc.sort((a, b) => a.v - b.v); bc.forEach((item, i) => { order[item.n] = i; layers[L][i] = item.n; });
             }
-
             const positions = {};
-            const W = LIMIT_X * 2 - 100, H = LIMIT_Y * 2 - 80;
-            const numL = maxL + 1;
-            const gapY = numL > 1 ? H / (numL - 1) : 0;
-            for (let L = 0; L <= maxL; L++) {
-                if (!layers[L]) continue;
-                const arr = layers[L], cnt = arr.length;
-                const gapX = cnt > 1 ? W / (cnt - 1) : 0;
-                arr.forEach((n, i) => {
-                    positions[n] = {
-                        x: cnt === 1 ? 0 : -W / 2 + i * gapX,
-                        y: numL === 1 ? 0 : -H / 2 + L * gapY
-                    };
-                });
-            }
-            resolveOverlap(positions, nodeNames, 170, 85, 40);
-            return positions;
+            const lb = getLayoutBounds(); const W = lb.halfW * 2, H = lb.halfH * 2;
+            const numL = maxL + 1; const gapY = numL > 1 ? H / (numL - 1) : 0;
+            for (let L = 0; L <= maxL; L++) { if (!layers[L]) continue; const arr = layers[L], cnt = arr.length; const gapX = cnt > 1 ? W / (cnt - 1) : 0; arr.forEach((n, i) => { positions[n] = { x: cnt === 1 ? 0 : -W / 2 + i * gapX, y: numL === 1 ? 0 : -H / 2 + L * gapY }; }); }
+            resolveOverlap(positions, nodeNames, 170, 85, 40); return positions;
         }
 
-        // ③ 원형 배치
         function layoutCircular(nodeNames, edges) {
-            const positions = {};
-            const n = nodeNames.length;
-            const rx = LIMIT_X - 80, ry = LIMIT_Y - 60;
-            nodeNames.forEach((name, i) => {
-                const angle = (2 * Math.PI * i / n) - Math.PI / 2;
-                positions[name] = {
-                    x: Math.cos(angle) * rx,
-                    y: Math.sin(angle) * ry
-                };
-            });
+            const positions = {}; const n = nodeNames.length;
+            const lb = getLayoutBounds(); const rx = lb.halfW * 0.85, ry = lb.halfH * 0.85;
+            nodeNames.forEach((name, i) => { const angle = (2 * Math.PI * i / n) - Math.PI / 2; positions[name] = { x: Math.cos(angle) * rx, y: Math.sin(angle) * ry }; });
             return positions;
         }
 
-        // ④ Force-directed (간단한 Fruchterman-Reingold)
         function layoutForceDirected(nodeNames, edges) {
-            const n = nodeNames.length;
-            const positions = {};
-            // 초기 위치: 랜덤
-            nodeNames.forEach(name => {
-                positions[name] = {
-                    x: (Math.random() - 0.5) * LIMIT_X * 1.4,
-                    y: (Math.random() - 0.5) * LIMIT_Y * 1.4
-                };
-            });
-
-            const area = (LIMIT_X * 2) * (LIMIT_Y * 2);
-            const k = Math.sqrt(area / Math.max(n, 1)) * 0.8;
-
+            const n = nodeNames.length; const positions = {}; const lb = getLayoutBounds();
+            nodeNames.forEach(name => { positions[name] = { x: (Math.random() - 0.5) * lb.halfW * 1.4, y: (Math.random() - 0.5) * lb.halfH * 1.4 }; });
+            const area = (lb.halfW * 2) * (lb.halfH * 2); const k = Math.sqrt(area / Math.max(n, 1)) * 0.8;
             for (let iter = 0; iter < 120; iter++) {
-                const disp = {};
-                nodeNames.forEach(n => { disp[n] = { x: 0, y: 0 }; });
-
-                // 반발력
-                for (let i = 0; i < n; i++) {
-                    for (let j = i + 1; j < n; j++) {
-                        const a = nodeNames[i], b = nodeNames[j];
-                        let dx = positions[a].x - positions[b].x;
-                        let dy = positions[a].y - positions[b].y;
-                        let dist = Math.sqrt(dx * dx + dy * dy) || 0.01;
-                        const force = (k * k) / dist;
-                        const fx = (dx / dist) * force;
-                        const fy = (dy / dist) * force;
-                        disp[a].x += fx; disp[a].y += fy;
-                        disp[b].x -= fx; disp[b].y -= fy;
-                    }
-                }
-
-                // 인력
-                edges.forEach(e => {
-                    if (!positions[e.from] || !positions[e.to]) return;
-                    let dx = positions[e.to].x - positions[e.from].x;
-                    let dy = positions[e.to].y - positions[e.from].y;
-                    let dist = Math.sqrt(dx * dx + dy * dy) || 0.01;
-                    const force = (dist * dist) / k;
-                    const fx = (dx / dist) * force;
-                    const fy = (dy / dist) * force;
-                    disp[e.from].x += fx * 0.4; disp[e.from].y += fy * 0.4;
-                    disp[e.to].x -= fx * 0.4; disp[e.to].y -= fy * 0.4;
-                });
-
+                const disp = {}; nodeNames.forEach(n => { disp[n] = { x: 0, y: 0 }; });
+                for (let i = 0; i < n; i++) { for (let j = i + 1; j < n; j++) { const a = nodeNames[i], b = nodeNames[j]; let dx = positions[a].x - positions[b].x; let dy = positions[a].y - positions[b].y; let dist = Math.sqrt(dx * dx + dy * dy) || 0.01; const force = (k * k) / dist; const fx = (dx / dist) * force; const fy = (dy / dist) * force; disp[a].x += fx; disp[a].y += fy; disp[b].x -= fx; disp[b].y -= fy; } }
+                edges.forEach(e => { if (!positions[e.from] || !positions[e.to]) return; let dx = positions[e.to].x - positions[e.from].x; let dy = positions[e.to].y - positions[e.from].y; let dist = Math.sqrt(dx * dx + dy * dy) || 0.01; const force = (dist * dist) / k; const fx = (dx / dist) * force; const fy = (dy / dist) * force; disp[e.from].x += fx * 0.4; disp[e.from].y += fy * 0.4; disp[e.to].x -= fx * 0.4; disp[e.to].y -= fy * 0.4; });
                 const temp = Math.max(0.5, 10 * (1 - iter / 120));
-                nodeNames.forEach(name => {
-                    const d = disp[name];
-                    const len = Math.sqrt(d.x * d.x + d.y * d.y) || 0.01;
-                    positions[name].x += (d.x / len) * Math.min(len, temp);
-                    positions[name].y += (d.y / len) * Math.min(len, temp);
-                    positions[name].x = Math.max(-LIMIT_X, Math.min(positions[name].x, LIMIT_X));
-                    positions[name].y = Math.max(-LIMIT_Y, Math.min(positions[name].y, LIMIT_Y));
-                });
+                nodeNames.forEach(name => { const d = disp[name]; const len = Math.sqrt(d.x * d.x + d.y * d.y) || 0.01; positions[name].x += (d.x / len) * Math.min(len, temp); positions[name].y += (d.y / len) * Math.min(len, temp); positions[name].x = Math.max(-lb.halfW, Math.min(positions[name].x, lb.halfW)); positions[name].y = Math.max(-lb.halfH, Math.min(positions[name].y, lb.halfH)); });
             }
-
-            resolveOverlap(positions, nodeNames, 160, 80, 50);
-            return positions;
+            resolveOverlap(positions, nodeNames, 160, 80, 50); return positions;
         }
 
-        // 레이아웃 선택 (순환)
         const LAYOUT_FUNCTIONS = [layoutHierarchyLR, layoutHierarchyTB, layoutCircular, layoutForceDirected];
+        function computeLayout(nodeNames, edges) { const fn = LAYOUT_FUNCTIONS[layoutCounter % LAYOUT_FUNCTIONS.length]; layoutCounter++; return fn(nodeNames, edges); }
 
-        function computeLayout(nodeNames, edges) {
-            const fn = LAYOUT_FUNCTIONS[layoutCounter % LAYOUT_FUNCTIONS.length];
-            layoutCounter++;
-            return fn(nodeNames, edges);
-        }
-
-        // ===== 스냅(마그넷) 시스템 =====
-        const SNAP_THRESHOLD = 18; // 캔버스 좌표 기준 스냅 거리
+        const SNAP_THRESHOLD = 18;
         let snapLinesH = null, snapLinesV = null;
 
         function createSnapLines() {
             const container = document.getElementById('canvas-container');
-            if (!snapLinesH) {
-                snapLinesH = document.createElement('div');
-                snapLinesH.className = 'snap-line horizontal';
-                snapLinesH.style.display = 'none';
-                container.appendChild(snapLinesH);
-            }
-            if (!snapLinesV) {
-                snapLinesV = document.createElement('div');
-                snapLinesV.className = 'snap-line vertical';
-                snapLinesV.style.display = 'none';
-                container.appendChild(snapLinesV);
-            }
+            if (!snapLinesH) { snapLinesH = document.createElement('div'); snapLinesH.className = 'snap-line horizontal'; snapLinesH.style.display = 'none'; container.appendChild(snapLinesH); }
+            if (!snapLinesV) { snapLinesV = document.createElement('div'); snapLinesV.className = 'snap-line vertical'; snapLinesV.style.display = 'none'; container.appendChild(snapLinesV); }
         }
+        function hideSnapLines() { if (snapLinesH) snapLinesH.style.display = 'none'; if (snapLinesV) snapLinesV.style.display = 'none'; }
+        function showSnapLineH(canvasY) { if (!snapLinesH) return; const domPos = network.canvasToDOM({ x: 0, y: canvasY }); snapLinesH.style.display = 'block'; snapLinesH.style.top = domPos.y + 'px'; }
+        function showSnapLineV(canvasX) { if (!snapLinesV) return; const domPos = network.canvasToDOM({ x: canvasX, y: 0 }); snapLinesV.style.display = 'block'; snapLinesV.style.left = domPos.x + 'px'; }
 
-        function hideSnapLines() {
-            if (snapLinesH) snapLinesH.style.display = 'none';
-            if (snapLinesV) snapLinesV.style.display = 'none';
-        }
-
-        function showSnapLineH(canvasY) {
-            if (!snapLinesH) return;
-            const domPos = network.canvasToDOM({ x: 0, y: canvasY });
-            const container = document.getElementById('canvas-container');
-            const rect = container.getBoundingClientRect();
-            snapLinesH.style.display = 'block';
-            snapLinesH.style.top = (domPos.y - rect.top) + 'px';
-        }
-
-        function showSnapLineV(canvasX) {
-            if (!snapLinesV) return;
-            const domPos = network.canvasToDOM({ x: canvasX, y: 0 });
-            const container = document.getElementById('canvas-container');
-            const rect = container.getBoundingClientRect();
-            snapLinesV.style.display = 'block';
-            snapLinesV.style.left = (domPos.x - rect.left) + 'px';
-        }
-
-        // ===== 커스텀 드래그 시스템 (vis.js 내장 드래그 완전 우회) =====
-        let customDragId = null;        // 노드 드래그 중일 때 해당 노드 ID
-        let customDragOffset = { x: 0, y: 0 };
-        let isPanningView = false;      // 빈 공간 드래그 시 뷰 패닝 중
-        let panStart = { x: 0, y: 0 };
-        let viewPosStart = { x: 0, y: 0 };
+        let customDragId = null, customDragOffset = { x: 0, y: 0 };
+        let isPanningView = false, panStart = { x: 0, y: 0 }, viewPosStart = { x: 0, y: 0 };
 
         function initCustomDrag() {
             const container = document.getElementById('canvas-container');
@@ -924,170 +817,87 @@
             canvasEl.addEventListener('mousedown', function(e) {
                 if (e.button !== 0) return;
                 const rect = container.getBoundingClientRect();
-                const domX = e.clientX - rect.left;
-                const domY = e.clientY - rect.top;
-
-                // 클릭 위치에 노드가 있는지 확인
+                const domX = e.clientX - rect.left, domY = e.clientY - rect.top;
                 const nodeId = network.getNodeAt({ x: domX, y: domY });
-
                 if (nodeId !== undefined) {
-                    // ── 노드 드래그 시작 ──
-                    e.preventDefault();
-                    customDragId = nodeId;
+                    e.preventDefault(); customDragId = nodeId;
                     const canvasPos = network.DOMtoCanvas({ x: domX, y: domY });
                     const nodePos = network.getPositions([nodeId])[nodeId];
-                    customDragOffset.x = canvasPos.x - nodePos.x;
-                    customDragOffset.y = canvasPos.y - nodePos.y;
+                    customDragOffset.x = canvasPos.x - nodePos.x; customDragOffset.y = canvasPos.y - nodePos.y;
                     network.selectNodes([nodeId]);
                 } else {
-                    // ── 빈 공간 드래그 → 뷰 패닝 시작 ──
-                    e.preventDefault();
-                    isPanningView = true;
-                    panStart.x = e.clientX;
-                    panStart.y = e.clientY;
-                    const vp = network.getViewPosition();
-                    viewPosStart.x = vp.x;
-                    viewPosStart.y = vp.y;
+                    e.preventDefault(); isPanningView = true;
+                    panStart.x = e.clientX; panStart.y = e.clientY;
+                    const vp = network.getViewPosition(); viewPosStart.x = vp.x; viewPosStart.y = vp.y;
                 }
             });
 
             window.addEventListener('mousemove', function(e) {
                 if (customDragId !== null) {
-                    // ── 노드 드래그 중: 스냅 로직 ──
                     const rect = container.getBoundingClientRect();
-                    const domX = e.clientX - rect.left;
-                    const domY = e.clientY - rect.top;
+                    const domX = e.clientX - rect.left, domY = e.clientY - rect.top;
                     const canvasPos = network.DOMtoCanvas({ x: domX, y: domY });
-
-                    let targetX = canvasPos.x - customDragOffset.x;
-                    let targetY = canvasPos.y - customDragOffset.y;
-
-                    // 다른 노드와 스냅 판정
+                    let targetX = canvasPos.x - customDragOffset.x, targetY = canvasPos.y - customDragOffset.y;
                     const allPos = network.getPositions();
-                    let didSnapX = false, didSnapY = false;
-                    let snapValX = 0, snapValY = 0;
+                    let didSnapX = false, didSnapY = false, snapValX = 0, snapValY = 0;
                     let bestDistX = SNAP_THRESHOLD, bestDistY = SNAP_THRESHOLD;
-
                     for (const otherId in allPos) {
                         if (otherId === customDragId) continue;
                         const other = allPos[otherId];
-
-                        const distY = Math.abs(targetY - other.y);
-                        if (distY < bestDistY) {
-                            bestDistY = distY;
-                            snapValY = other.y;
-                            didSnapY = true;
-                        }
-
-                        const distX = Math.abs(targetX - other.x);
-                        if (distX < bestDistX) {
-                            bestDistX = distX;
-                            snapValX = other.x;
-                            didSnapX = true;
-                        }
+                        const distY = Math.abs(targetY - other.y); if (distY < bestDistY) { bestDistY = distY; snapValY = other.y; didSnapY = true; }
+                        const distX = Math.abs(targetX - other.x); if (distX < bestDistX) { bestDistX = distX; snapValX = other.x; didSnapX = true; }
                     }
-
-                    if (didSnapY) targetY = snapValY;
-                    if (didSnapX) targetX = snapValX;
-
-                    // 경계 클램프
-                    targetX = Math.max(-LIMIT_X, Math.min(targetX, LIMIT_X));
-                    targetY = Math.max(-LIMIT_Y, Math.min(targetY, LIMIT_Y));
-
+                    if (didSnapY) targetY = snapValY; if (didSnapX) targetX = snapValX;
+                    const bounds = getViewBounds();
+                    targetX = Math.max(bounds.minX, Math.min(targetX, bounds.maxX));
+                    targetY = Math.max(bounds.minY, Math.min(targetY, bounds.maxY));
                     network.moveNode(customDragId, targetX, targetY);
-
-                    // 가이드라인
-                    if (didSnapY) showSnapLineH(snapValY);
-                    else if (snapLinesH) snapLinesH.style.display = 'none';
-
-                    if (didSnapX) showSnapLineV(snapValX);
-                    else if (snapLinesV) snapLinesV.style.display = 'none';
-
+                    if (didSnapY) showSnapLineH(snapValY); else if (snapLinesH) snapLinesH.style.display = 'none';
+                    if (didSnapX) showSnapLineV(snapValX); else if (snapLinesV) snapLinesV.style.display = 'none';
                 } else if (isPanningView) {
-                    // ── 뷰 패닝 중 ──
                     const scale = network.getScale();
-                    const dx = (e.clientX - panStart.x) / scale;
-                    const dy = (e.clientY - panStart.y) / scale;
-                    network.moveTo({
-                        position: {
-                            x: viewPosStart.x - dx,
-                            y: viewPosStart.y - dy
-                        },
-                        animation: false
-                    });
+                    const dx = (e.clientX - panStart.x) / scale, dy = (e.clientY - panStart.y) / scale;
+                    network.moveTo({ position: { x: viewPosStart.x - dx, y: viewPosStart.y - dy }, animation: false });
                 }
             });
 
             window.addEventListener('mouseup', function(e) {
-                if (customDragId !== null) {
-                    customDragId = null;
-                    hideSnapLines();
-                    saveState();
-                }
-                if (isPanningView) {
-                    isPanningView = false;
-                }
+                if (customDragId !== null) { customDragId = null; hideSnapLines(); saveState(); }
+                if (isPanningView) { isPanningView = false; }
             });
         }
 
-        // ===== 네트워크 초기화 =====
         function initNetwork() {
             const container = document.getElementById('canvas-container');
             const data = { nodes: nodesDataSet, edges: edgesDataSet };
             const t = THEMES[currentTheme];
-            
             const options = {
                 physics: { enabled: false },
-                edges: { 
-                    color: { color: t.edgeColor, highlight: t.edgeColor },
-                    smooth: { type: 'continuous' }, 
-                    width: currentEdgeWidth 
-                },
-                interaction: {
-                    hover: true,
-                    dragNodes: false, // 커스텀 드래그로 대체
-                    dragView: false   // 노드 드래그와 충돌 방지 → 뷰 이동도 커스텀으로 처리
-                }
+                edges: { color: { color: t.edgeColor, highlight: t.edgeColor }, smooth: { type: 'continuous' }, width: currentEdgeWidth },
+                interaction: { hover: true, dragNodes: false, dragView: false }
             };
-
             network = new vis.Network(container, data, options);
             createSnapLines();
-
-            // vis.js 렌더링 완료 후 커스텀 드래그 초기화
-            network.once("afterDrawing", function() {
-                initCustomDrag();
-            });
-
-            // 엣지 클릭 → 계수 입력
+            network.once("afterDrawing", function() { initCustomDrag(); });
             network.on("click", function (params) {
-                if (activeCoeffEdgeId) return;
-                if (customDragId !== null) return; // 드래그 중 클릭 무시
-                
+                if (activeCoeffEdgeId || customDragId !== null) return;
                 if (params.edges.length > 0 && params.nodes.length === 0) {
-                    const edgeId = params.edges[0];
-                    openCoeffModal(edgeId, params.event.center.x, params.event.center.y);
+                    openCoeffModal(params.edges[0], params.event.center.x, params.event.center.y);
                 }
             });
         }
 
-        // ===== 추가/생성 =====
         function addOnly() {
-            const parsed = parseTextData();
-            let hasNew = false;
-
-            parsed.nodes.forEach(name => {
-                if (!nodesDataSet.get(name)) { nodesDataSet.add(createNodeObj(name)); hasNew = true; }
-            });
+            const parsed = parseTextData(); let hasNew = false;
+            parsed.nodes.forEach(name => { if (!nodesDataSet.get(name)) { nodesDataSet.add(createNodeObj(name)); hasNew = true; } });
             parsed.edges.forEach(edge => {
                 const edgeId = edge.bi ? edge.from + '||' + edge.to + '||bi' : edge.from + '||' + edge.to;
                 if (!edgesDataSet.get(edgeId)) { edgesDataSet.add(createEdgeObj(edge.from, edge.to, edge.bi)); hasNew = true; }
             });
-
             if (hasNew) {
                 const allNodes = nodesDataSet.getIds();
                 const allEdges = edgesDataSet.get().map(e => ({ from: e.from, to: e.to, bi: !!(e.arrows && e.arrows.from && e.arrows.from.enabled) }));
                 const positions = computeLayout(allNodes, allEdges);
-
                 const existingPositions = network.getPositions();
                 const updates = [];
                 for (const name in positions) {
@@ -1096,60 +906,33 @@
                     }
                 }
                 if (updates.length > 0) nodesDataSet.update(updates);
-                centerNetwork();
-                saveState();
-            } else {
-                alert("추가할 새로운 변인이나 화살표가 없습니다.");
-            }
+                centerNetwork(); saveState();
+            } else { alert("추가할 새로운 변인이나 화살표가 없습니다."); }
         }
 
         function generateRandom() {
             const parsed = parseTextData();
-            nodesDataSet.clear(); 
-            edgesDataSet.clear();
-            
-            if (parsed.nodes.length === 0) {
-                saveState();
-                return;
-            }
-
+            nodesDataSet.clear(); edgesDataSet.clear();
+            if (parsed.nodes.length === 0) { saveState(); return; }
             const positions = computeLayout(parsed.nodes, parsed.edges);
-
-            const nodeObjs = parsed.nodes.map(name => {
-                const obj = createNodeObj(name);
-                obj.x = positions[name].x;
-                obj.y = positions[name].y;
-                return obj;
-            });
-
+            const nodeObjs = parsed.nodes.map(name => { const obj = createNodeObj(name); obj.x = positions[name].x; obj.y = positions[name].y; return obj; });
             nodesDataSet.add(nodeObjs);
             edgesDataSet.add(parsed.edges.map(e => createEdgeObj(e.from, e.to, e.bi)));
-            
-            centerNetwork();
-            saveState();
+            centerNetwork(); saveState();
         }
 
-        // ===== 히스토리 =====
         function saveState() {
             if (isRestoring || !network) return;
             const nodeIds = nodesDataSet.getIds();
             const positions = nodeIds.length > 0 ? network.getPositions(nodeIds) : {};
-            
-            const currentNodes = nodesDataSet.get().map(node => {
-                const p = positions[node.id] || { x: 0, y: 0 };
-                return { ...node, x: p.x, y: p.y };
-            });
+            const currentNodes = nodesDataSet.get().map(node => { const p = positions[node.id] || { x: 0, y: 0 }; return { ...node, x: p.x, y: p.y }; });
             const currentEdges = edgesDataSet.get();
             const currentText = document.getElementById('inputText').value;
-
             historyStack = historyStack.slice(0, historyIndex + 1);
             historyStack.push({
-                nodes: JSON.parse(JSON.stringify(currentNodes)),
-                edges: JSON.parse(JSON.stringify(currentEdges)),
-                text: currentText,
-                theme: currentTheme,
-                fontSize: currentFontSize,
-                edgeWidth: currentEdgeWidth
+                nodes: JSON.parse(JSON.stringify(currentNodes)), edges: JSON.parse(JSON.stringify(currentEdges)),
+                text: currentText, theme: currentTheme, fontSize: currentFontSize,
+                edgeWidth: currentEdgeWidth, isTextBold, isTextLarger
             });
             historyIndex++;
         }
@@ -1161,81 +944,90 @@
             isRestoring = true;
             document.getElementById('inputText').value = state.text;
             network.setOptions({ physics: { enabled: false } });
-
             nodesDataSet.clear(); edgesDataSet.clear();
             nodesDataSet.add(state.nodes); edgesDataSet.add(state.edges);
-
-            if (state.theme) {
-                currentTheme = state.theme;
-                document.querySelectorAll('.theme-btn').forEach(b => b.classList.remove('active'));
-                const btn = document.querySelector(`.theme-btn[data-theme="${state.theme}"]`);
-                if (btn) btn.classList.add('active');
-            }
-            currentFontSize = state.fontSize || 22;
-            currentEdgeWidth = state.edgeWidth || 2;
-            document.getElementById('fontSlider').value = currentFontSize;
-            document.getElementById('edgeSlider').value = currentEdgeWidth;
-            document.getElementById('fontVal').textContent = currentFontSize;
-            document.getElementById('edgeVal').textContent = currentEdgeWidth;
-
+            if (state.theme) { currentTheme = state.theme; document.querySelectorAll('.theme-btn').forEach(b => b.classList.remove('active')); const btn = document.querySelector(`.theme-btn[data-theme="${state.theme}"]`); if (btn) btn.classList.add('active'); }
+            if (state.fontSize) { currentFontSize = state.fontSize; document.getElementById('fontSlider').value = currentFontSize; document.getElementById('fontVal').textContent = currentFontSize; }
+            if (state.edgeWidth) { currentEdgeWidth = state.edgeWidth; document.getElementById('edgeSlider').value = currentEdgeWidth; document.getElementById('edgeVal').textContent = currentEdgeWidth; }
+            if (state.isTextBold !== undefined) { isTextBold = state.isTextBold; const btn = document.getElementById('btn-bold'); if (isTextBold) btn.classList.add('toggle-active'); else btn.classList.remove('toggle-active'); }
+            if (state.isTextLarger !== undefined) { isTextLarger = state.isTextLarger; const btn = document.getElementById('btn-large'); if (isTextLarger) btn.classList.add('toggle-active'); else btn.classList.remove('toggle-active'); }
             setTimeout(() => { isRestoring = false; }, 100);
         }
 
-        function centerNetwork() {
-            if (network) network.fit({ animation: { duration: 500, easingFunction: "easeInOutQuad" } });
-        }
+        function centerNetwork() { if (network) network.fit({ animation: { duration: 500, easingFunction: "easeInOutQuad" } }); }
 
         function saveAsJPG() {
-            const canvas = document.querySelector('#canvas-container canvas');
-            if (!canvas) return;
-
-            const tempCanvas = document.createElement('canvas');
-            tempCanvas.width = canvas.width; tempCanvas.height = canvas.height;
-            const ctx = tempCanvas.getContext('2d');
-
-            ctx.fillStyle = '#ffffff'; 
-            ctx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
-            ctx.drawImage(canvas, 0, 0);
-
-            const link = document.createElement('a');
-            link.download = '인과지도_모형.jpg';
-            link.href = tempCanvas.toDataURL('image/jpeg', 1.0);
+            const canvas = document.querySelector('#canvas-container canvas'); if (!canvas) return;
+            const tempCanvas = document.createElement('canvas'); tempCanvas.width = canvas.width; tempCanvas.height = canvas.height;
+            const ctx = tempCanvas.getContext('2d'); ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, tempCanvas.width, tempCanvas.height); ctx.drawImage(canvas, 0, 0);
+            const link = document.createElement('a'); link.download = '변인_모형.jpg'; link.href = tempCanvas.toDataURL('image/jpeg', 1.0);
             document.body.appendChild(link); link.click(); document.body.removeChild(link);
         }
 
-        // 모달 바깥 클릭 시 닫기
+        function saveProject() {
+            const nodeIds = nodesDataSet.getIds();
+            const positions = nodeIds.length > 0 ? network.getPositions(nodeIds) : {};
+            const project = {
+                version: '0.1.5', text: document.getElementById('inputText').value, theme: currentTheme,
+                fontSize: currentFontSize, edgeWidth: currentEdgeWidth, canvasMargin,
+                isTextBold, isTextLarger,
+                nodes: nodesDataSet.get().map(node => { const p = positions[node.id] || { x: 0, y: 0 }; return { id: node.id, label: node.label, x: p.x, y: p.y }; }),
+                edges: edgesDataSet.get().map(e => ({
+                    id: e.id, from: e.from, to: e.to, label: e.rawLabel || (e.label ? e.label.replace(/<\/?b>/g, '') : null),
+                    bidirectional: !!(e.arrows && e.arrows.from && e.arrows.from.enabled),
+                    straight: e.smooth === false || (e.smooth && e.smooth.enabled === false)
+                }))
+            };
+            const blob = new Blob([JSON.stringify(project, null, 2)], { type: 'application/json' });
+            const link = document.createElement('a'); link.download = '변인_모형_프로젝트.json'; link.href = URL.createObjectURL(blob);
+            document.body.appendChild(link); link.click(); document.body.removeChild(link); URL.revokeObjectURL(link.href);
+        }
+
+        function loadProject(event) {
+            const file = event.target.files[0]; if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const project = JSON.parse(e.target.result);
+                    if (project.text !== undefined) document.getElementById('inputText').value = project.text;
+                    if (project.theme && THEMES[project.theme]) setTheme(project.theme);
+                    if (project.fontSize) { currentFontSize = project.fontSize; document.getElementById('fontSlider').value = currentFontSize; document.getElementById('fontVal').textContent = currentFontSize; }
+                    if (project.edgeWidth) { currentEdgeWidth = project.edgeWidth; document.getElementById('edgeSlider').value = currentEdgeWidth; document.getElementById('edgeVal').textContent = currentEdgeWidth; }
+                    if (project.canvasMargin !== undefined) { canvasMargin = project.canvasMargin; document.getElementById('marginSlider').value = canvasMargin; document.getElementById('marginVal').textContent = canvasMargin; }
+                    if (project.isTextBold !== undefined) { isTextBold = project.isTextBold; const btn = document.getElementById('btn-bold'); if (isTextBold) btn.classList.add('toggle-active'); else btn.classList.remove('toggle-active'); }
+                    if (project.isTextLarger !== undefined) { isTextLarger = project.isTextLarger; const btn = document.getElementById('btn-large'); if (isTextLarger) btn.classList.add('toggle-active'); else btn.classList.remove('toggle-active'); }
+                    nodesDataSet.clear(); edgesDataSet.clear();
+                    if (project.nodes) { const nodeObjs = project.nodes.map(n => { const obj = createNodeObj(n.id); obj.x = n.x; obj.y = n.y; return obj; }); nodesDataSet.add(nodeObjs); }
+                    if (project.edges) {
+                        const edgeObjs = project.edges.map(e => {
+                            const obj = createEdgeObj(e.from, e.to, e.bidirectional);
+                            if (e.label) { const t = THEMES[currentTheme]; obj.rawLabel = e.label; obj.label = isTextBold ? `<b>${e.label}</b>` : e.label; obj.font = { multi: 'html', size: Math.max(14, currentFontSize - 4), color: t.fontColor, strokeWidth: 4, strokeColor: '#ffffff', face: 'Malgun Gothic', align: 'top' }; }
+                            if (e.straight) obj.smooth = false;
+                            return obj;
+                        });
+                        edgesDataSet.add(edgeObjs);
+                    }
+                    centerNetwork(); saveState();
+                } catch (err) { alert('파일을 불러올 수 없습니다.'); console.error(err); }
+            };
+            reader.readAsText(file); event.target.value = '';
+        }
+
         document.addEventListener('click', function(e) {
             const modal = document.getElementById('coeff-modal');
             if (modal.style.display === 'block' && !modal.contains(e.target)) {
-                // 약간의 딜레이: vis-network click 이벤트와 충돌 방지
-                setTimeout(() => {
-                    if (modal.style.display === 'block' && !modal.contains(document.activeElement)) {
-                        closeCoeffModal();
-                    }
-                }, 100);
+                setTimeout(() => { if (modal.style.display === 'block' && !modal.contains(document.activeElement)) closeCoeffModal(); }, 100);
             }
         });
 
-        // Enter로 계수 적용
         document.addEventListener('keydown', function(e) {
-            if (activeCoeffEdgeId && e.key === 'Enter') {
-                e.preventDefault();
-                applyCoeff();
-                return;
-            }
-            if (activeCoeffEdgeId && e.key === 'Escape') {
-                e.preventDefault();
-                closeCoeffModal();
-                return;
-            }
+            if (activeCoeffEdgeId && e.key === 'Enter') { e.preventDefault(); applyCoeff(); return; }
+            if (activeCoeffEdgeId && e.key === 'Escape') { e.preventDefault(); closeCoeffModal(); return; }
             if (e.ctrlKey && e.key === 'z') { e.preventDefault(); undo(); }
             if (e.ctrlKey && (e.key === 'y' || e.key === 'Z')) { e.preventDefault(); redo(); }
         });
 
-        window.onload = function() {
-            initNetwork(); 
-            generateRandom(); 
-        };
+        window.onload = function() { initNetwork(); generateRandom(); };
     </script>
 </body>
 </html>
