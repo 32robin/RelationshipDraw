@@ -2,17 +2,25 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>변인 모형 생성기 v0.2.0</title>
+    <title>변인 모형 생성기 v1.0.0</title>
     <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
     <style>
         * { box-sizing: border-box; }
-        body { display: flex; flex-direction: column; margin: 0; height: 100vh; font-family: 'Malgun Gothic', sans-serif; background-color: #f8f9fa; }
+        body { display: flex; flex-direction: column; margin: 0; height: 100vh; font-family: 'Malgun Gothic', sans-serif; background-color: #f8f9fa; overflow: hidden; }
         
-        #header { display: flex; justify-content: space-between; align-items: center; padding: 0 18px; height: 60px; background-color: #fff; border-bottom: 1px solid #dee2e6; box-shadow: 0 2px 4px rgba(0,0,0,0.05); z-index: 10; flex-shrink: 0; }
-        #header-left { display: flex; align-items: center; gap: 10px; }
-        #header-title { font-size: 18px; font-weight: bold; color: #212529; white-space: nowrap; }
-        #header-center { display: flex; align-items: center; gap: 6px; }
-        #header-right { display: flex; align-items: center; gap: 6px; }
+        /* 헤더 2줄 레이아웃 디자인 */
+        #header { display: flex; flex-direction: column; padding: 14px 20px; background-color: #fff; border-bottom: 1px solid #dee2e6; box-shadow: 0 2px 4px rgba(0,0,0,0.05); z-index: 10; flex-shrink: 0; }
+        .header-row { display: flex; align-items: center; width: 100%; justify-content: space-between; }
+        .header-row + .header-row { margin-top: 12px; }
+        
+        /* 영역 분할: 좌측(타이틀 고정영역), 중앙(도구영역), 우측(액션버튼영역) */
+        .header-left-zone { width: 220px; flex-shrink: 0; display: flex; align-items: center; }
+        .header-center-zone { display: flex; align-items: center; gap: 8px; flex-grow: 1; overflow-x: auto; padding-bottom: 2px; }
+        .header-center-zone::-webkit-scrollbar { display: none; }
+        .header-right-zone { display: flex; align-items: center; gap: 8px; width: 280px; flex-shrink: 0; justify-content: flex-end; }
+
+        #header-title { font-size: 19px; font-weight: 800; color: #212529; letter-spacing: -0.5px; white-space: nowrap; margin-bottom: 2px; }
+        .contact-info { font-size: 11px; color: #868e96; font-weight: 500; letter-spacing: -0.3px; }
 
         .hbtn { padding: 6px 13px; cursor: pointer; background: #fff; color: #495057; border: 1px solid #ced4da; border-radius: 6px; font-weight: 600; font-size: 13px; transition: all 0.15s; white-space: nowrap; font-family: inherit; }
         .hbtn:hover { background: #f1f3f5; color: #212529; border-color: #adb5bd; }
@@ -20,8 +28,11 @@
         .hbtn.primary:hover { background: #495057; }
         .hbtn-hist { font-size: 12px; padding: 5px 10px; background: #f8f9fa; }
         .hbtn.toggle-active { background: #212529; color: white; border-color: #212529; }
+        
+        /* 동일한 크기를 갖는 우측 4개 버튼용 클래스 */
+        .u-btn { width: 135px; height: 36px; padding: 0; display: flex; justify-content: center; align-items: center; font-size: 13px; font-weight: 600; box-sizing: border-box; }
 
-        .theme-btn { width: 26px; height: 26px; border-radius: 50%; border: 2px solid #ced4da; cursor: pointer; transition: all 0.15s; }
+        .theme-btn { width: 26px; height: 26px; border-radius: 50%; border: 2px solid #ced4da; cursor: pointer; transition: all 0.15s; flex-shrink: 0; }
         .theme-btn:hover { transform: scale(1.15); }
         .theme-btn.active { border-color: #212529; box-shadow: 0 0 0 2px rgba(33,37,41,0.25); }
         .theme-btn[data-theme="black"] { background: #212529; }
@@ -29,23 +40,23 @@
         .theme-btn[data-theme="red"] { background: #c92a2a; }
         .theme-btn[data-theme="green"] { background: #2b8a3e; }
 
-        .size-group { display: flex; align-items: center; gap: 4px; margin-left: 4px; padding-left: 9px; border-left: 1px solid #dee2e6; }
+        .size-group { display: flex; align-items: center; gap: 4px; margin-left: 4px; padding-left: 9px; border-left: 1px solid #dee2e6; flex-shrink: 0; }
         .size-label { font-size: 13px; color: #868e96; font-weight: 600; white-space: nowrap; }
         .size-slider { width: 70px; height: 4px; -webkit-appearance: none; appearance: none; background: #dee2e6; border-radius: 2px; outline: none; cursor: pointer; }
         .size-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%; background: #495057; border: 2px solid #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.2); cursor: pointer; }
         .size-val { font-size: 12px; color: #868e96; width: 20px; text-align: center; }
-        .sep { width: 1px; height: 24px; background: #dee2e6; margin: 0 4px; }
+        .sep { width: 1px; height: 24px; background: #dee2e6; margin: 0 4px; flex-shrink: 0; }
 
-        .shape-bar { display: flex; gap: 0; border: 1px solid #ced4da; border-radius: 6px; overflow: hidden; }
-        .shape-bar button { padding: 5px 10px; border: none; background: #f8f9fa; color: #495057; font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; }
+        .shape-bar { display: flex; gap: 0; border: 1px solid #ced4da; border-radius: 6px; overflow: hidden; flex-shrink: 0; }
+        .shape-bar button { padding: 5px 10px; border: none; background: #f8f9fa; color: #495057; font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; white-space: nowrap; }
         .shape-bar button.active { background: #212529; color: #fff; }
         .shape-bar button:hover:not(.active) { background: #e9ecef; }
         .shape-bar button + button { border-left: 1px solid #ced4da; }
 
-        #main-content { display: flex; flex-grow: 1; height: calc(100vh - 60px - 36px); }
+        #main-content { display: flex; flex-grow: 1; height: calc(100vh - 100px - 36px); }
         #left-panel { width: 28%; min-width: 280px; padding: 18px; background: white; border-right: 1px solid #dee2e6; display: flex; flex-direction: column; }
-        .input-guide { font-size: 15px; color: #6c757d; margin: 0 0 6px 0; line-height: 1.6; }
-        .input-guide code { background: #f1f3f5; padding: 2px 7px; border-radius: 3px; font-size: 14px; font-family: 'Consolas', monospace; color: #495057; }
+        .input-guide { font-size: 14px; color: #6c757d; margin: 0 0 6px 0; line-height: 1.6; }
+        .input-guide code { background: #f1f3f5; padding: 2px 5px; border-radius: 3px; font-size: 13px; font-family: 'Consolas', monospace; color: #495057; }
         textarea { flex-grow: 1; margin-bottom: 12px; padding: 14px; font-size: 14px; line-height: 1.6; resize: none; border: 1px solid #ced4da; border-radius: 8px; background-color: #fcfcfc; font-family: inherit; }
         .btn-group { display: flex; flex-direction: column; gap: 8px; }
         .action-btn { padding: 13px; cursor: pointer; border: none; border-radius: 8px; font-weight: bold; font-size: 14px; transition: background 0.2s; font-family: inherit; }
@@ -54,7 +65,7 @@
         .btn-random { background: #e9ecef; color: #495057; border: 1px solid #ced4da; }
         .btn-random:hover { background: #dee2e6; color: #212529; }
         
-        #right-panel { flex: 1; display: flex; align-items: center; justify-content: center; padding: 30px; background-color: #f8f9fa; }
+        #right-panel { flex: 1; display: flex; align-items: center; justify-content: center; padding: 30px; background-color: #f8f9fa; overflow: hidden; }
         #canvas-container { width: 100%; max-width: 1122px; aspect-ratio: 1.414 / 1; background: #fff; box-shadow: 0 10px 30px rgba(0,0,0,0.1); border: 1px solid #e9ecef; border-radius: 4px; position: relative; }
 
         .snap-line { position: absolute; background: #339af0; opacity: 0.5; z-index: 5; pointer-events: none; }
@@ -73,12 +84,12 @@
         .line-toggle, .shape-toggle { display: flex; gap: 0; border: 1px solid #ced4da; border-radius: 6px; overflow: hidden; }
         .line-toggle { margin: 10px 0 0 0; }
         .shape-toggle { margin: 0 0 6px 0; }
-        .line-toggle button, .shape-toggle button { flex: 1; padding: 8px 0; border: none; background: #f8f9fa; color: #495057; font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; }
+        .line-toggle button, .shape-toggle button { flex: 1; padding: 8px 0; border: none; background: #f8f9fa; color: #495057; font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; white-space: nowrap; }
         .line-toggle button.active, .shape-toggle button.active { background: #212529; color: #fff; }
         .line-toggle button:hover:not(.active), .shape-toggle button:hover:not(.active) { background: #e9ecef; }
         .line-toggle button + button, .shape-toggle button + button { border-left: 1px solid #ced4da; }
 
-        #node-modal { min-width: 300px; }
+        #node-modal { min-width: 330px; }
         .color-pick { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
         .color-pick span.clabel { font-size: 13px; font-weight: 600; color: #868e96; }
         .color-dot { width: 26px; height: 26px; border-radius: 50%; border: 2px solid #ced4da; cursor: pointer; transition: all 0.15s; }
@@ -95,50 +106,65 @@
 <body>
 
     <div id="header">
-        <div id="header-left">
-            <span id="header-title">변인 모형 생성기</span>
-            <button class="hbtn hbtn-hist" onclick="undo()" title="Ctrl+Z">⟲ 뒤로</button>
-            <button class="hbtn hbtn-hist" onclick="redo()" title="Ctrl+Y">⟳ 앞으로</button>
+        <div class="header-row">
+            <div class="header-left-zone">
+                <div style="display: flex; flex-direction: column;">
+                    <span id="header-title">변인 모형 생성기</span>
+                    <span class="contact-info">문의: 32robin@naver.com</span>
+                </div>
+            </div>
+            <div class="header-center-zone">
+                <button class="hbtn hbtn-hist" onclick="undo()" title="Ctrl+Z">⟲ 뒤로</button>
+                <button class="hbtn hbtn-hist" onclick="redo()" title="Ctrl+Y">⟳ 앞으로</button>
+                <div class="sep"></div>
+                <span class="size-label">테마</span>
+                <button class="theme-btn active" data-theme="black" onclick="setTheme('black')"></button>
+                <button class="theme-btn" data-theme="blue" onclick="setTheme('blue')"></button>
+                <button class="theme-btn" data-theme="red" onclick="setTheme('red')"></button>
+                <button class="theme-btn" data-theme="green" onclick="setTheme('green')"></button>
+                <div class="sep"></div>
+                <div class="size-group">
+                    <span class="size-label">글자</span>
+                    <input type="range" class="size-slider" id="fontSlider" min="14" max="36" value="22" oninput="applySize()">
+                    <span class="size-val" id="fontVal">22</span>
+                </div>
+                <button id="btn-bold" class="hbtn toggle-active" onclick="toggleBold()">볼드체</button>
+                <button id="btn-large" class="hbtn" onclick="toggleLargeText()">큰글자</button>
+                <div class="size-group">
+                    <span class="size-label">화살표</span>
+                    <input type="range" class="size-slider" id="edgeSlider" min="1" max="5" value="2" step="0.5" oninput="applySize()">
+                    <span class="size-val" id="edgeVal">2</span>
+                </div>
+                <div class="size-group">
+                    <span class="size-label">여백</span>
+                    <input type="range" class="size-slider" id="marginSlider" min="0" max="150" value="20" oninput="applyCanvasMargin()">
+                    <span class="size-val" id="marginVal" style="width:24px;">20</span>
+                </div>
+            </div>
+            <div class="header-right-zone">
+                <button class="hbtn u-btn" onclick="centerNetwork()">중앙정렬</button>
+                <button class="hbtn u-btn primary" onclick="saveAsJPG()">JPG 저장</button>
+            </div>
         </div>
-        <div id="header-center">
-            <div class="shape-bar">
-                <button id="gshape-box" onclick="setGlobalShape('box')">▭</button>
-                <button id="gshape-round" class="active" onclick="setGlobalShape('roundedBox')">▢</button>
-                <button id="gshape-ellipse" onclick="setGlobalShape('ellipse')">⬭</button>
+
+        <div class="header-row">
+            <div class="header-left-zone">
+                </div>
+            <div class="header-center-zone">
+                <div class="shape-bar">
+                    <button id="gshape-box" onclick="setGlobalShape('box')">전체 각진 네모</button>
+                    <button id="gshape-round" class="active" onclick="setGlobalShape('roundedBox')">전체 둥근 네모</button>
+                    <button id="gshape-ellipse" onclick="setGlobalShape('ellipse')">전체 타원형</button>
+                </div>
+                <div class="sep"></div>
+                <button id="btn-all-curve" class="hbtn toggle-active" onclick="setAllEdgesStraight(false)">전체 곡선</button>
+                <button id="btn-all-straight" class="hbtn" onclick="setAllEdgesStraight(true)">전체 직선</button>
             </div>
-            <div class="sep"></div>
-            <span class="size-label">테마</span>
-            <button class="theme-btn active" data-theme="black" onclick="setTheme('black')"></button>
-            <button class="theme-btn" data-theme="blue" onclick="setTheme('blue')"></button>
-            <button class="theme-btn" data-theme="red" onclick="setTheme('red')"></button>
-            <button class="theme-btn" data-theme="green" onclick="setTheme('green')"></button>
-            <div class="sep"></div>
-            <div class="size-group">
-                <span class="size-label">글자</span>
-                <input type="range" class="size-slider" id="fontSlider" min="14" max="36" value="22" oninput="applySize()">
-                <span class="size-val" id="fontVal">22</span>
+            <div class="header-right-zone">
+                <button class="hbtn u-btn" onclick="saveProject()">💾 파일로 저장</button>
+                <button class="hbtn u-btn" onclick="document.getElementById('loadFile').click()">📂 파일 불러오기</button>
+                <input type="file" id="loadFile" accept=".json" style="display:none" onchange="loadProject(event)">
             </div>
-            <button id="btn-bold" class="hbtn toggle-active" onclick="toggleBold()">볼드체</button>
-            <button id="btn-large" class="hbtn" onclick="toggleLargeText()">큰글자</button>
-            <div class="size-group">
-                <span class="size-label">화살표</span>
-                <input type="range" class="size-slider" id="edgeSlider" min="1" max="5" value="2" step="0.5" oninput="applySize()">
-                <span class="size-val" id="edgeVal">2</span>
-            </div>
-            <div class="size-group">
-                <span class="size-label">여백</span>
-                <input type="range" class="size-slider" id="marginSlider" min="0" max="150" value="20" oninput="applyCanvasMargin()">
-                <span class="size-val" id="marginVal" style="width:24px;">20</span>
-            </div>
-            <div class="sep"></div>
-            <button id="btn-line-toggle" class="hbtn" onclick="toggleAllEdgeStyle()">곡선/직선 일괄적용</button>
-        </div>
-        <div id="header-right">
-            <button class="hbtn" onclick="centerNetwork()">중앙정렬</button>
-            <button class="hbtn" onclick="saveProject()">💾 저장</button>
-            <button class="hbtn" onclick="document.getElementById('loadFile').click()">📂 불러오기</button>
-            <input type="file" id="loadFile" accept=".json" style="display:none" onchange="loadProject(event)">
-            <button class="hbtn primary" onclick="saveAsJPG()">JPG 저장</button>
         </div>
     </div>
 
@@ -147,15 +173,13 @@
     <div id="main-content">
         <div id="left-panel">
             <h3 style="margin-top:0; color: #212529;">변인 관계 입력창</h3>
-            <p class="input-guide">단방향: <code>원인 - 결과</code> · 쌍방향: <code>변인1 &lt;-&gt; 변인2</code></p>
+            <p class="input-guide">단방향: <code>원인 - 결과</code><br>쌍방향: <code>변인1 &lt;-&gt; 변인2</code><br>조절모형: <code>C - (A - B)</code> (C가 A→B 조절)</p>
             <textarea id="inputText">예산 부족 - 전문인력 이탈
 전문인력 이탈 - 인원 부족
 인원 부족 - 업무 과중
 업무 과중 - 전문인력 소진
-업무 과중 - 기존 업무 부실화
-전문인력 이탈 - 인력 교체 빈번
-인력 교체 빈번 - 인력 전문성 저하
-업무 과중 <-> 전문인력 이탈</textarea>
+소통 부족 <-> 고립적 업무
+자기자비 - (완벽주의 - 반추)</textarea>
             <div class="btn-group">
                 <button class="action-btn btn-add" onclick="syncModel()">모형에 반영하기</button>
                 <button class="action-btn btn-random" onclick="generateRandom()">랜덤 자동 모형 생성 (초기화)</button>
@@ -177,9 +201,9 @@
     <div id="node-modal" class="popup-modal">
         <label id="node-modal-label">변인 설정</label>
         <div class="shape-toggle">
-            <button id="shape-rect" onclick="selectShape('box')">▭ 각진 네모</button>
-            <button id="shape-round" class="active" onclick="selectShape('roundedBox')">▢ 둥근 네모</button>
-            <button id="shape-ellipse" onclick="selectShape('ellipse')">⬭ 타원형</button>
+            <button id="shape-rect" onclick="selectShape('box')">각진 네모</button>
+            <button id="shape-round" class="active" onclick="selectShape('roundedBox')">둥근 네모</button>
+            <button id="shape-ellipse" onclick="selectShape('ellipse')">타원형</button>
         </div>
         <div class="color-pick">
             <span class="clabel">색상</span>
@@ -223,75 +247,158 @@
 
         function getNodeTheme(n){const c=nodeColors[n];if(c&&THEMES[c])return THEMES[c];return THEMES[currentTheme];}
 
-        // ===== 핵심: 타원형을 box + 매우 큰 borderRadius로 구현 =====
         function buildNodeStyle(name){
+            if(name.startsWith('mod||')){
+                return {
+                    id: name, label: undefined, shape: 'dot', size: 0, margin: 0, borderWidth: 0,
+                    color: 'rgba(0,0,0,0)', font: {size: 0, color: 'rgba(0,0,0,0)'},
+                    physics: false, fixed: {x: true, y: true}, chosen: false
+                };
+            }
+
             const t=getNodeTheme(name);
             const shapeType=nodeShapes[name]||globalShape;
             const scale=nodeScales[name]||1.0;
-            const baseMTB=Math.round(MARGIN_BASE*scale);
-            const baseMLR=Math.round((MARGIN_BASE+10)*scale);
-            const fontSize=Math.round(currentFontSize*scale);
+            
+            const fontRatio = currentFontSize / 22; 
+            const baseMTB = Math.round(MARGIN_BASE * scale * fontRatio);
+            const baseMLR = Math.round((MARGIN_BASE + 10) * scale * fontRatio);
+            const fontSize = Math.round(currentFontSize * scale);
 
-            // 모든 모양을 box shape로 통일. borderRadius로 시각적 구분.
-            let borderRadius=0;
-            let mTB=baseMTB, mLR=baseMLR;
+            let fontColor=isTextLarger?t.nodeBg:t.fontColor;
+            let labelText=isTextBold?`<b>${name}</b>`:name;
 
-            if(shapeType==='box'){
-                borderRadius=0;
-            } else if(shapeType==='ellipse'){
-                // 타원형: 큰 borderRadius + 매우 넉넉한 margin
-                borderRadius=999; // vis.js가 자동으로 반지름에 맞게 잘라줌
-                mTB=Math.round(baseMTB*2.5);
-                mLR=Math.round(baseMLR*2.2);
-            } else {
-                // 둥근 네모
-                borderRadius=Math.round(8*scale);
-            }
-
-            const fontColor=isTextLarger?t.nodeBg:t.fontColor;
-            const labelText=isTextBold?`<b>${name}</b>`:name;
-
-            return{id:name,label:labelText,shape:'box',
-                shapeProperties:{borderRadius},
+            let nodeConfig = {
+                id:name, label:labelText,
                 color:{background:t.nodeBg,border:t.nodeBorder,highlight:{background:t.nodeHBg,border:t.nodeHBorder}},
                 font:{multi:'html',color:fontColor,size:fontSize,face:'Malgun Gothic'},
-                margin:{top:mTB,right:mLR,bottom:mTB,left:mLR},borderWidth:2};
+                borderWidth:2
+            };
+
+            if(shapeType === 'ellipse') {
+                nodeConfig.shape = 'ellipse';
+                measureCtx.font = (isTextBold ? 'bold ' : 'normal ') + fontSize + 'px "Malgun Gothic"';
+                let txtW = measureCtx.measureText(name).width;
+                let txtH = fontSize * 1.2;
+                // 타원형 여백 약 5% 감소
+                let padX = baseMLR * 2.37; 
+                let padY = baseMTB * 0.95;
+                
+                nodeConfig.widthConstraint = { minimum: txtW + padX };
+                nodeConfig.heightConstraint = { minimum: txtH + padY };
+            } else {
+                nodeConfig.shape = 'box';
+                nodeConfig.shapeProperties = { borderRadius: shapeType==='box'? 0 : Math.round(8*scale) };
+                nodeConfig.margin = {top:baseMTB,right:baseMLR,bottom:baseMTB,left:baseMLR};
+                
+                nodeConfig.widthConstraint = false;
+                nodeConfig.heightConstraint = false;
+            }
+
+            return nodeConfig;
         }
 
         function drawLargerTextOverlay(ctx){
             if(!isTextLarger)return;
             const ids=nodesDataSet.getIds(),positions=network.getPositions(ids);
-            ids.forEach(id=>{const p=positions[id];if(!p)return;const t=getNodeTheme(id);const sc=nodeScales[id]||1.0;const lfs=Math.round(Math.round(currentFontSize*sc)*1.2);const w=isTextBold?'bold ':'normal ';
+            ids.forEach(id=>{
+                if(id.startsWith('mod||')) return; 
+                const p=positions[id];if(!p)return;const t=getNodeTheme(id);const sc=nodeScales[id]||1.0;const lfs=Math.round(Math.round(currentFontSize*sc)*1.2);const w=isTextBold?'bold ':'normal ';
                 ctx.save();ctx.font=w+lfs+'px "Malgun Gothic"';ctx.fillStyle=t.fontColor;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(id,p.x,p.y);ctx.restore();});
         }
 
+        // 계수(라벨) 위치를 75% 지점으로 조정
         function drawEdgeLabelsOverlay(ctx){
-            edgesDataSet.get().forEach(e=>{const raw=e.rawLabel;if(!raw)return;
-                const fp=network.getPositions([e.from])[e.from],tp=network.getPositions([e.to])[e.to];if(!fp||!tp)return;
-                let mx=(fp.x+tp.x)/2,my=(fp.y+tp.y)/2;
-                const dx=tp.x-fp.x,dy=tp.y-fp.y,len=Math.sqrt(dx*dx+dy*dy)||1;
-                const nx=-dy/len,ny=dx/len;mx+=nx*16;my+=ny*16;
-                const et=THEMES[currentTheme];const fs=Math.max(14,currentFontSize-4);const w=isTextBold?'bold ':'normal ';
-                ctx.save();ctx.font=w+fs+'px "Malgun Gothic"';
-                const tw=ctx.measureText(raw).width;
-                ctx.fillStyle='#ffffff';ctx.fillRect(mx-tw/2-3,my-fs/2-2,tw+6,fs+4);
-                ctx.fillStyle=et.fontColor;ctx.textAlign='center';ctx.textBaseline='middle';
-                ctx.fillText(raw,mx,my);ctx.restore();});
+            edgesDataSet.get().forEach(e=>{
+                const raw = e.rawLabel; 
+                if(!raw) return;
+                
+                let mx, my, nx, ny;
+                const edgeInternal = network.body.edges[e.id];
+                
+                // 3/4 (75%) 지점으로 변경
+                if (edgeInternal && edgeInternal.edgeType && edgeInternal.edgeType.getPoint) {
+                    const pt1 = edgeInternal.edgeType.getPoint(0.74);
+                    const pt2 = edgeInternal.edgeType.getPoint(0.76);
+                    mx = (pt1.x + pt2.x) / 2;
+                    my = (pt1.y + pt2.y) / 2;
+                    let dx = pt2.x - pt1.x;
+                    let dy = pt2.y - pt1.y;
+                    let len = Math.sqrt(dx*dx + dy*dy) || 1;
+                    nx = -dy/len;
+                    ny = dx/len;
+                } else {
+                    const fp=network.getPositions([e.from])[e.from], tp=network.getPositions([e.to])[e.to];
+                    if(!fp || !tp) return;
+                    mx = fp.x + (tp.x - fp.x) * 0.75;
+                    my = fp.y + (tp.y - fp.y) * 0.75;
+                    let dx = tp.x - fp.x, dy = tp.y - fp.y;
+                    let len = Math.sqrt(dx*dx + dy*dy) || 1;
+                    nx = -dy/len;
+                    ny = dx/len;
+                }
+
+                if (ny > 0) { nx = -nx; ny = -ny; } 
+                else if (ny === 0) { nx = 0; ny = -1; }
+
+                const offset = 16; 
+                mx += nx * offset;
+                my += ny * offset;
+
+                const et = THEMES[currentTheme];
+                const fs = Math.max(14, currentFontSize - 4);
+                const w = isTextBold ? 'bold ' : 'normal ';
+                
+                ctx.save();
+                ctx.font = w + fs + 'px "Malgun Gothic"';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                
+                ctx.strokeStyle = et.nodeBg;
+                ctx.lineWidth = 5;
+                ctx.lineJoin = 'round';
+                ctx.strokeText(raw, mx, my);
+                
+                ctx.fillStyle = et.fontColor;
+                ctx.fillText(raw, mx, my);
+                ctx.restore();
+            });
         }
 
         function createNodeObj(n){return buildNodeStyle(n);}
-        function createEdgeObj(from,to,bi){const t=THEMES[currentTheme];const sf=0.6+currentEdgeWidth*0.2;
-            const arrows=bi?{to:{enabled:true,type:'triangle',scaleFactor:sf},from:{enabled:true,type:'triangle',scaleFactor:sf}}:{to:{enabled:true,type:'triangle',scaleFactor:sf}};
-            const id=bi?from+'||'+to+'||bi':from+'||'+to;
-            return{id,from,to,arrows,color:{color:t.edgeColor,highlight:t.edgeColor},width:currentEdgeWidth,smooth:allEdgesStraight?false:{type:'continuous'}};}
 
-        function applyVisuals(){const t=THEMES[currentTheme];
+        function createEdgeObj(from,to,bi,modType){
+            const t=THEMES[currentTheme];
+            const sf=0.6+currentEdgeWidth*0.2;
+            let arrows={to:{enabled:true,type:'triangle',scaleFactor:sf}};
+            
+            if(bi) arrows={to:{enabled:true,type:'triangle',scaleFactor:sf},from:{enabled:true,type:'triangle',scaleFactor:sf}};
+
+            let id = from+'||'+to;
+            if(bi) id+='||bi';
+            if(modType) id+='||'+modType;
+
+            return{id,from,to,arrows,color:{color:t.edgeColor,highlight:t.edgeColor},width:currentEdgeWidth,smooth:allEdgesStraight?false:{enabled:true, type:'continuous'}};}
+
+        function applyVisuals(){
+            const t=THEMES[currentTheme];
             nodesDataSet.update(nodesDataSet.get().map(n=>buildNodeStyle(n.id)));
-            network.setOptions({edges:{color:{color:t.edgeColor,highlight:t.edgeColor},width:currentEdgeWidth,smooth:allEdgesStraight?false:{type:'continuous'}}});
-            edgesDataSet.update(edgesDataSet.get().map(e=>{const sf=0.6+currentEdgeWidth*0.2;
+            network.setOptions({edges:{color:{color:t.edgeColor,highlight:t.edgeColor},width:currentEdgeWidth,smooth:allEdgesStraight?false:{enabled:true, type:'continuous'}}});
+            
+            edgesDataSet.update(edgesDataSet.get().map(e=>{
+                const sf=0.6+currentEdgeWidth*0.2;
                 const u={id:e.id,color:{color:t.edgeColor,highlight:t.edgeColor},width:currentEdgeWidth};
-                u.arrows=(e.arrows&&e.arrows.from&&e.arrows.from.enabled)?{to:{enabled:true,type:'triangle',scaleFactor:sf},from:{enabled:true,type:'triangle',scaleFactor:sf}}:{to:{enabled:true,type:'triangle',scaleFactor:sf}};
-                if(e.rawLabel){u.label=' ';u.font={size:1,color:'rgba(0,0,0,0)'};}return u;}));}
+                
+                if(e.arrows&&e.arrows.from&&e.arrows.from.enabled) {
+                    u.arrows = {to:{enabled:true,type:'triangle',scaleFactor:sf},from:{enabled:true,type:'triangle',scaleFactor:sf}};
+                } else {
+                    u.arrows = {to:{enabled:true,type:'triangle',scaleFactor:sf}};
+                }
+
+                if(e.rawLabel){u.label=' ';u.font={size:1,color:'rgba(0,0,0,0)'};}
+                return u;
+            }));
+        }
 
         function setTheme(n){currentTheme=n;document.querySelectorAll('.theme-btn').forEach(b=>b.classList.remove('active'));document.querySelector(`.theme-btn[data-theme="${n}"]`).classList.add('active');applyVisuals();}
         function applySize(){currentFontSize=parseInt(document.getElementById('fontSlider').value);currentEdgeWidth=parseFloat(document.getElementById('edgeSlider').value);document.getElementById('fontVal').textContent=currentFontSize;document.getElementById('edgeVal').textContent=currentEdgeWidth;applyVisuals();}
@@ -302,48 +409,120 @@
             document.getElementById('gshape-'+{box:'box',roundedBox:'round',ellipse:'ellipse'}[s]).classList.add('active');
             nodeShapes={};applyVisuals();saveState();}
 
-        // ===== 곡선/직선 일괄 토글 =====
-        function toggleAllEdgeStyle(){
-            allEdgesStraight=!allEdgesStraight;
-            const btn=document.getElementById('btn-line-toggle');
-            btn.classList.toggle('toggle-active',allEdgesStraight);
-            // 모든 엣지에 적용
-            const updates=edgesDataSet.get().map(e=>({id:e.id, smooth:allEdgesStraight?false:{type:'continuous'}}));
+        function setAllEdgesStraight(isStraight){
+            allEdgesStraight = isStraight;
+            document.getElementById('btn-all-curve').classList.toggle('toggle-active', !isStraight);
+            document.getElementById('btn-all-straight').classList.toggle('toggle-active', isStraight);
+
+            const updates = edgesDataSet.get().map(e => ({id: e.id, smooth: allEdgesStraight ? false : {enabled: true, type: 'continuous'}}));
             edgesDataSet.update(updates);
-            network.setOptions({edges:{smooth:allEdgesStraight?false:{type:'continuous'}}});
+            network.setOptions({edges:{smooth:allEdgesStraight ? false : {enabled: true, type:'continuous'}}});
+            
             saveState();
         }
 
-        function parseTextData(){const lines=document.getElementById('inputText').value.split('\n');const nodes=new Set(),edges=[];
-            lines.forEach(line=>{const t=line.trim();if(!t)return;
-                const bi=t.match(/^(.+?)\s*<->\s*(.+)$/);if(bi){const a=bi[1].trim(),b=bi[2].trim();if(a&&b){nodes.add(a);nodes.add(b);edges.push({from:a,to:b,bi:true});}return;}
-                const uni=t.match(/^(.+?)\s+-\s+(.+)$/);if(uni){const a=uni[1].trim(),b=uni[2].trim();if(a&&b){nodes.add(a);nodes.add(b);edges.push({from:a,to:b,bi:false});}}});
-            return{nodes:Array.from(nodes),edges};}
+        function parseTextData(){
+            const lines=document.getElementById('inputText').value.split('\n');
+            const nodes=new Set(), edges=[];
+            const mods=[];
 
-        function syncModel(){const parsed=parseTextData();const wN=new Set(parsed.nodes);const wE=new Set(parsed.edges.map(e=>e.bi?e.from+'||'+e.to+'||bi':e.from+'||'+e.to));
-            const rmN=nodesDataSet.getIds().filter(id=>!wN.has(id));if(rmN.length>0){rmN.forEach(id=>{delete nodeShapes[id];delete nodeScales[id];delete nodeColors[id];});nodesDataSet.remove(rmN);}
-            const rmE=edgesDataSet.getIds().filter(id=>!wE.has(id));if(rmE.length>0)edgesDataSet.remove(rmE);
-            let hasNew=false;parsed.nodes.forEach(n=>{if(!nodesDataSet.get(n)){nodesDataSet.add(createNodeObj(n));hasNew=true;}});
-            parsed.edges.forEach(e=>{const eid=e.bi?e.from+'||'+e.to+'||bi':e.from+'||'+e.to;if(!edgesDataSet.get(eid)){edgesDataSet.add(createEdgeObj(e.from,e.to,e.bi));hasNew=true;}});
-            if(hasNew){const all=nodesDataSet.getIds();const ae=edgesDataSet.get().map(e=>({from:e.from,to:e.to,bi:!!(e.arrows&&e.arrows.from&&e.arrows.from.enabled)}));const pos=computeLayout(all,ae);const ex=network.getPositions();all.forEach(n=>{if(!ex[n]||(ex[n].x===0&&ex[n].y===0)){if(pos[n])nodesDataSet.update({id:n,x:pos[n].x,y:pos[n].y});}});}
-            centerNetwork();saveState();}
+            lines.forEach(line=>{
+                const t=line.trim();if(!t)return;
+                
+                const modMatch = t.match(/^(.+?)\s*-\s*\(\s*(.+?)\s*-\s*(.+?)\s*\)$/);
+                if(modMatch){
+                    const c=modMatch[1].trim(), a=modMatch[2].trim(), b=modMatch[3].trim();
+                    if(c && a && b) { nodes.add(c); nodes.add(a); nodes.add(b); mods.push({c, a, b}); }
+                    return;
+                }
+                
+                const bi=t.match(/^(.+?)\s*<->\s*(.+)$/);
+                if(bi){const a=bi[1].trim(),b=bi[2].trim();if(a&&b){nodes.add(a);nodes.add(b);edges.push({from:a,to:b,bi:true});}return;}
+                
+                const uni=t.match(/^(.+?)\s+-\s+(.+)$/);
+                if(uni){const a=uni[1].trim(),b=uni[2].trim();if(a&&b){nodes.add(a);nodes.add(b);edges.push({from:a,to:b,bi:false});}}
+            });
 
-        function generateRandom(){const parsed=parseTextData();nodesDataSet.clear();edgesDataSet.clear();
+            mods.forEach(m => {
+                const existingAB = edges.find(e => (e.from===m.a && e.to===m.b) || (e.from===m.b && e.to===m.a));
+                if(!existingAB) {
+                    edges.push({from: m.a, to: m.b, bi: false});
+                }
+                
+                const modId = `mod||${m.c}||${m.a}||${m.b}`;
+                nodes.add(modId); 
+                edges.push({from: m.c, to: modId, bi: false, modType: 'modC'});  
+            });
+
+            return{nodes:Array.from(nodes), edges:edges};
+        }
+
+        function syncModel(){
+            const parsed=parseTextData();
+            const wN=new Set(parsed.nodes);
+            const wE=new Set(parsed.edges.map(e=>{ let id=e.from+'||'+e.to; if(e.bi) id+='||bi'; if(e.modType) id+='||'+e.modType; return id; }));
+            
+            const rmN=nodesDataSet.getIds().filter(id=>!wN.has(id));
+            if(rmN.length>0){rmN.forEach(id=>{delete nodeShapes[id];delete nodeScales[id];delete nodeColors[id];});nodesDataSet.remove(rmN);}
+            
+            const rmE=edgesDataSet.getIds().filter(id=>!wE.has(id));
+            if(rmE.length>0) edgesDataSet.remove(rmE);
+            
+            let hasNew=false;
+            parsed.nodes.forEach(n=>{if(!nodesDataSet.get(n)){nodesDataSet.add(createNodeObj(n));hasNew=true;}});
+            parsed.edges.forEach(e=>{
+                let eid=e.from+'||'+e.to; if(e.bi) eid+='||bi'; if(e.modType) eid+='||'+e.modType;
+                if(!edgesDataSet.get(eid)){ edgesDataSet.add(createEdgeObj(e.from,e.to,e.bi,e.modType)); hasNew=true; }
+            });
+            
+            if(hasNew){const all=nodesDataSet.getIds();
+            const ae=edgesDataSet.get().map(e=>({from:e.from,to:e.to,bi:!!(e.arrows&&e.arrows.from&&e.arrows.from.enabled)}));
+            const pos=computeLayout(all,ae);const ex=network.getPositions();all.forEach(n=>{if(!ex[n]||(ex[n].x===0&&ex[n].y===0)){if(pos[n])nodesDataSet.update({id:n,x:pos[n].x,y:pos[n].y});}});}
+            
+            centerNetwork();saveState();
+        }
+
+        function generateRandom(){
+            const parsed=parseTextData();nodesDataSet.clear();edgesDataSet.clear();
             const keep=new Set(parsed.nodes);Object.keys(nodeShapes).forEach(k=>{if(!keep.has(k))delete nodeShapes[k];});Object.keys(nodeScales).forEach(k=>{if(!keep.has(k))delete nodeScales[k];});Object.keys(nodeColors).forEach(k=>{if(!keep.has(k))delete nodeColors[k];});
             if(!parsed.nodes.length){saveState();return;}const pos=computeLayout(parsed.nodes,parsed.edges);
             nodesDataSet.add(parsed.nodes.map(n=>{const o=createNodeObj(n);o.x=pos[n].x;o.y=pos[n].y;return o;}));
-            edgesDataSet.add(parsed.edges.map(e=>createEdgeObj(e.from,e.to,e.bi)));centerNetwork();saveState();}
+            edgesDataSet.add(parsed.edges.map(e=>createEdgeObj(e.from,e.to,e.bi,e.modType)));
+            centerNetwork();saveState();
+        }
 
         let activeEdgeId=null;
-        function openEdgeModal(edgeId,x,y){const e=edgesDataSet.get(edgeId);if(!e)return;activeEdgeId=edgeId;document.getElementById('edge-label').textContent=`계수: ${e.from} → ${e.to}`;document.getElementById('edge-input').value=e.rawLabel||'';const st=e.smooth===false;document.getElementById('btn-curved').classList.toggle('active',!st);document.getElementById('btn-straight').classList.toggle('active',st);const m=document.getElementById('edge-modal');m.style.display='block';m.style.left=Math.min(x,innerWidth-220)+'px';m.style.top=Math.min(y,innerHeight-180)+'px';setTimeout(()=>document.getElementById('edge-input').focus(),50);}
+        function openEdgeModal(edgeId,x,y){
+            const e=edgesDataSet.get(edgeId);if(!e)return;activeEdgeId=edgeId;
+            let displayLabel = `${e.from} → ${e.to}`;
+            if(e.to.startsWith('mod||')) {
+                const parts = e.to.split('||');
+                displayLabel = `${parts[1]} → (${parts[2]}-${parts[3]}) 선의 중앙`;
+            }
+            
+            document.getElementById('edge-label').textContent=`계수: ${displayLabel}`;
+            document.getElementById('edge-input').value=e.rawLabel||'';
+            const st=e.smooth===false;
+            document.getElementById('btn-curved').classList.toggle('active',!st);
+            document.getElementById('btn-straight').classList.toggle('active',st);
+            const m=document.getElementById('edge-modal');m.style.display='block';m.style.left=Math.min(x,innerWidth-220)+'px';m.style.top=Math.min(y,innerHeight-180)+'px';setTimeout(()=>document.getElementById('edge-input').focus(),50);}
         function closeEdgeModal(){document.getElementById('edge-modal').style.display='none';activeEdgeId=null;}
         function setEdgeCurve(c){document.getElementById('btn-curved').classList.toggle('active',c);document.getElementById('btn-straight').classList.toggle('active',!c);}
-        function applyEdgeModal(){if(!activeEdgeId)return;const val=document.getElementById('edge-input').value.trim();const st=document.getElementById('btn-straight').classList.contains('active');
-            const u={id:activeEdgeId,smooth:st?false:{type:'continuous'}};if(val){u.rawLabel=val;u.label=' ';u.font={size:1,color:'rgba(0,0,0,0)'};}else{u.rawLabel=undefined;u.label=undefined;u.font=undefined;}
-            edgesDataSet.update(u);closeEdgeModal();saveState();}
+        
+        function applyEdgeModal(){
+            if(!activeEdgeId)return;
+            const val=document.getElementById('edge-input').value.trim();
+            const st=document.getElementById('btn-straight').classList.contains('active');
+            const u={id:activeEdgeId,smooth:st?false:{enabled:true, type:'continuous'}};
+            if(val){ u.rawLabel=val; u.label=' '; u.font={size:1,color:'rgba(0,0,0,0)'}; }
+            else{ u.rawLabel=null; u.label=null; u.font={size:14, color:'#000000'}; }
+            edgesDataSet.update(u); closeEdgeModal(); saveState();
+        }
 
         let activeNodeId=null,selectedShape='roundedBox',selectedNodeColor='black',nodeModalOpenedAt=0;
-        function openNodeModal(nodeId,x,y){activeNodeId=nodeId;nodeModalOpenedAt=Date.now();selectedShape=nodeShapes[nodeId]||globalShape;selectedNodeColor=nodeColors[nodeId]||'black';
+        function openNodeModal(nodeId,x,y){
+            if (String(nodeId).startsWith('mod||')) return; 
+            activeNodeId=nodeId;nodeModalOpenedAt=Date.now();selectedShape=nodeShapes[nodeId]||globalShape;selectedNodeColor=nodeColors[nodeId]||'black';
             document.getElementById('node-modal-label').textContent=`변인 설정: ${nodeId}`;
             document.querySelectorAll('.shape-toggle button').forEach(b=>b.classList.remove('active'));if(selectedShape==='box')document.getElementById('shape-rect').classList.add('active');else if(selectedShape==='ellipse')document.getElementById('shape-ellipse').classList.add('active');else document.getElementById('shape-round').classList.add('active');
             document.querySelectorAll('.color-dot').forEach(d=>d.classList.remove('active'));const cd=document.querySelector(`.color-dot[data-c="${selectedNodeColor}"]`);if(cd)cd.classList.add('active');
@@ -355,7 +534,6 @@
         function previewNodeScale(){document.getElementById('node-scale-val').textContent=parseFloat(document.getElementById('node-scale-slider').value).toFixed(1);}
         function applyNodeModal(){if(!activeNodeId)return;nodeShapes[activeNodeId]=selectedShape;nodeScales[activeNodeId]=parseFloat(document.getElementById('node-scale-slider').value);nodeColors[activeNodeId]=selectedNodeColor;nodesDataSet.update(buildNodeStyle(activeNodeId));closeNodeModal();saveState();}
 
-        // ===== 레이아웃 =====
         function buildAdj(names,edges){const o={},i={};names.forEach(n=>{o[n]=[];i[n]=[];});edges.forEach(e=>{if(o[e.from]&&i[e.to]){o[e.from].push(e.to);if(!e.bi)i[e.to].push(e.from);else{i[e.to].push(e.from);i[e.from].push(e.to);o[e.to].push(e.from);}}});return{o,i};}
         function assignLayers(names,inA){const L={},vis=new Set(),done=new Set();function go(n){if(done.has(n))return L[n];if(vis.has(n)){L[n]=0;return 0;}vis.add(n);const p=inA[n]||[];if(!p.length)L[n]=0;else{let m=0;p.forEach(x=>{m=Math.max(m,go(x)+1);});L[n]=m;}vis.delete(n);done.add(n);return L[n];}names.forEach(n=>{if(!done.has(n))go(n);});names.forEach(n=>{if(L[n]===undefined)L[n]=0;});return L;}
         function resolveOverlap(pos,names,dx,dy,it){const lb=getLayoutBounds();for(let t=0;t<it;t++){let mv=false;for(let i=0;i<names.length;i++)for(let j=i+1;j<names.length;j++){const a=pos[names[i]],b=pos[names[j]];const ddx=b.x-a.x,ddy=b.y-a.y,ax=Math.abs(ddx),ay=Math.abs(ddy);if(ax<dx&&ay<dy){const px=(dx-ax)/2*(ddx>=0?1:-1),py=(dy-ay)/2*(ddy>=0?1:-1);a.x-=px*.5;a.y-=py*.5;b.x+=px*.5;b.y+=py*.5;mv=true;}}names.forEach(n=>{pos[n].x=Math.max(-lb.halfW,Math.min(pos[n].x,lb.halfW));pos[n].y=Math.max(-lb.halfH,Math.min(pos[n].y,lb.halfH));});if(!mv)break;}}
@@ -374,16 +552,52 @@
 
         let dragId=null,dragOff={x:0,y:0},panning=false,panS={x:0,y:0},vpS={x:0,y:0};
         function initDrag(){const c=document.getElementById('canvas-container'),cv=c.querySelector('canvas');if(!cv)return;
-            cv.addEventListener('mousedown',function(e){if(e.button!==0)return;const r=c.getBoundingClientRect(),dx=e.clientX-r.left,dy=e.clientY-r.top;const nid=network.getNodeAt({x:dx,y:dy});if(nid!==undefined){e.preventDefault();dragId=nid;const cp=network.DOMtoCanvas({x:dx,y:dy}),np=network.getPositions([nid])[nid];dragOff.x=cp.x-np.x;dragOff.y=cp.y-np.y;network.selectNodes([nid]);}else{e.preventDefault();panning=true;panS.x=e.clientX;panS.y=e.clientY;const vp=network.getViewPosition();vpS.x=vp.x;vpS.y=vp.y;}});
+            cv.addEventListener('mousedown',function(e){if(e.button!==0)return;const r=c.getBoundingClientRect(),dx=e.clientX-r.left,dy=e.clientY-r.top;const nid=network.getNodeAt({x:dx,y:dy});
+            if(nid!==undefined && !String(nid).startsWith('mod||')){
+                e.preventDefault();dragId=nid;const cp=network.DOMtoCanvas({x:dx,y:dy}),np=network.getPositions([nid])[nid];dragOff.x=cp.x-np.x;dragOff.y=cp.y-np.y;network.selectNodes([nid]);
+            }else{
+                e.preventDefault();panning=true;panS.x=e.clientX;panS.y=e.clientY;const vp=network.getViewPosition();vpS.x=vp.x;vpS.y=vp.y;
+            }});
             window.addEventListener('mousemove',function(e){if(dragId!==null){const r=c.getBoundingClientRect(),cp=network.DOMtoCanvas({x:e.clientX-r.left,y:e.clientY-r.top});let tx=cp.x-dragOff.x,ty=cp.y-dragOff.y;const all=network.getPositions();let sX=false,sY=false,vX=0,vY=0,bX=SNAP_T,bY=SNAP_T;for(const oid in all){if(oid===dragId)continue;const o=all[oid];if(Math.abs(ty-o.y)<bY){bY=Math.abs(ty-o.y);vY=o.y;sY=true;}if(Math.abs(tx-o.x)<bX){bX=Math.abs(tx-o.x);vX=o.x;sX=true;}}if(sY)ty=vY;if(sX)tx=vX;const b=getViewBounds();tx=Math.max(b.minX,Math.min(tx,b.maxX));ty=Math.max(b.minY,Math.min(ty,b.maxY));network.moveNode(dragId,tx,ty);if(sY)showH(vY);else if(snapH)snapH.style.display='none';if(sX)showV(vX);else if(snapV)snapV.style.display='none';}else if(panning){const sc=network.getScale();network.moveTo({position:{x:vpS.x-(e.clientX-panS.x)/sc,y:vpS.y-(e.clientY-panS.y)/sc},animation:false});}});
             window.addEventListener('mouseup',function(){if(dragId!==null){dragId=null;hideSnap();saveState();}panning=false;});}
 
         function initNetwork(){const c=document.getElementById('canvas-container');const t=THEMES[currentTheme];
             network=new vis.Network(c,{nodes:nodesDataSet,edges:edgesDataSet},{physics:{enabled:false},edges:{color:{color:t.edgeColor,highlight:t.edgeColor},smooth:{type:'continuous'},width:currentEdgeWidth},interaction:{hover:true,dragNodes:false,dragView:false}});
             createSnap();network.once("afterDrawing",()=>initDrag());
+            
+            network.on("beforeDrawing", function() {
+                const ids = nodesDataSet.getIds();
+                ids.forEach(id => {
+                    if(typeof id === 'string' && id.startsWith('mod||')) {
+                        const parts = id.split('||');
+                        const a = parts[2], b = parts[3];
+                        
+                        const possibleEdges = [ a+'||'+b, a+'||'+b+'||bi', b+'||'+a, b+'||'+a+'||bi' ];
+                        let edgeInternal = null;
+                        for(let i=0; i<possibleEdges.length; i++){
+                            if(network.body.edges[possibleEdges[i]]) { edgeInternal = network.body.edges[possibleEdges[i]]; break; }
+                        }
+                        
+                        const nodeInternal = network.body.nodes[id];
+                        if(edgeInternal && nodeInternal && edgeInternal.edgeType && edgeInternal.edgeType.getPoint) {
+                            const pt = edgeInternal.edgeType.getPoint(0.5);
+                            nodeInternal.x = pt.x;
+                            nodeInternal.y = pt.y;
+                        } else if(nodeInternal) {
+                            const posA = network.body.nodes[a], posB = network.body.nodes[b];
+                            if(posA && posB) { nodeInternal.x = (posA.x + posB.x)/2; nodeInternal.y = (posA.y + posB.y)/2; }
+                        }
+                    }
+                });
+            });
+
             network.on("afterDrawing",ctx=>{drawLargerTextOverlay(ctx);drawEdgeLabelsOverlay(ctx);});
             network.on("click",p=>{if(activeEdgeId||activeNodeId||dragId)return;if(p.edges.length>0&&p.nodes.length===0)openEdgeModal(p.edges[0],p.event.center.x,p.event.center.y);});
-            network.on("doubleClick",p=>{if(p.nodes.length>0)openNodeModal(p.nodes[0],p.event.center.x,p.event.center.y);});}
+            
+            network.on("doubleClick",p=>{
+                if(p.nodes.length>0 && !String(p.nodes[0]).startsWith('mod||')){ openNodeModal(p.nodes[0],p.event.center.x,p.event.center.y); }
+            });
+        }
 
         function saveState(){if(isRestoring||!network)return;const ids=nodesDataSet.getIds(),pos=ids.length>0?network.getPositions(ids):{};
             historyStack=historyStack.slice(0,historyIndex+1);historyStack.push({nodes:JSON.parse(JSON.stringify(nodesDataSet.get().map(n=>({...n,x:(pos[n.id]||{x:0}).x,y:(pos[n.id]||{y:0}).y})))),edges:JSON.parse(JSON.stringify(edgesDataSet.get())),text:document.getElementById('inputText').value,
@@ -398,16 +612,21 @@
             if(s.isTextBold!==undefined){isTextBold=s.isTextBold;document.getElementById('btn-bold').classList.toggle('toggle-active',isTextBold);}
             if(s.isTextLarger!==undefined){isTextLarger=s.isTextLarger;document.getElementById('btn-large').classList.toggle('toggle-active',isTextLarger);}
             if(s.globalShape){globalShape=s.globalShape;document.querySelectorAll('.shape-bar button').forEach(b=>b.classList.remove('active'));document.getElementById('gshape-'+{box:'box',roundedBox:'round',ellipse:'ellipse'}[globalShape]).classList.add('active');}
-            if(s.allEdgesStraight!==undefined){allEdgesStraight=s.allEdgesStraight;document.getElementById('btn-line-toggle').classList.toggle('toggle-active',allEdgesStraight);}
+            
+            if(s.allEdgesStraight!==undefined){
+                allEdgesStraight=s.allEdgesStraight;
+                document.getElementById('btn-all-curve')?.classList.toggle('toggle-active', !allEdgesStraight);
+                document.getElementById('btn-all-straight')?.classList.toggle('toggle-active', allEdgesStraight);
+                network.setOptions({edges:{smooth:allEdgesStraight?false:{enabled:true, type:'continuous'}}});
+            }
+
             if(s.nodeShapes)nodeShapes=JSON.parse(JSON.stringify(s.nodeShapes));if(s.nodeScales)nodeScales=JSON.parse(JSON.stringify(s.nodeScales));if(s.nodeColors)nodeColors=JSON.parse(JSON.stringify(s.nodeColors));
             setTimeout(()=>{isRestoring=false;},100);}
             
         function centerNetwork() {
             if (!network) return;
-
             const ids = nodesDataSet.getIds();
             if (ids.length === 0) return;
-
             const pos = network.getPositions(ids);
             let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
 
@@ -417,29 +636,23 @@
                 if (pos[id].y < minY) minY = pos[id].y;
                 if (pos[id].y > maxY) maxY = pos[id].y;
             }
-
             const centerX = (minX + maxX) / 2;
             const centerY = (minY + maxY) / 2;
 
-            // 로직 분리: 배율(scale) 설정을 삭제하거나 현재 배율을 명시하여 
-            // 확대/축소 등 줌 인터랙션이 발생하지 않도록 강제합니다.
-            network.moveTo({
-                position: { x: centerX, y: centerY },
-                scale: network.getScale(), // 현재 캔버스의 배율 상태를 그대로 유지
-                animation: {
-                    duration: 500,
-                    easingFunction: "easeInOutQuad"
-                }
-            });
+            network.moveTo({ position: { x: centerX, y: centerY }, animation: { duration: 500, easingFunction: "easeInOutQuad" } });
         }
 
         function saveAsJPG(){const cv=document.querySelector('#canvas-container canvas');if(!cv)return;const tc=document.createElement('canvas');tc.width=cv.width;tc.height=cv.height;const ctx=tc.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,tc.width,tc.height);ctx.drawImage(cv,0,0);const a=document.createElement('a');a.download='변인_모형.jpg';a.href=tc.toDataURL('image/jpeg',1.0);document.body.appendChild(a);a.click();document.body.removeChild(a);}
         function saveProject(){const ids=nodesDataSet.getIds(),pos=ids.length>0?network.getPositions(ids):{};
-            const proj={version:'0.2.3',text:document.getElementById('inputText').value,theme:currentTheme,fontSize:currentFontSize,edgeWidth:currentEdgeWidth,canvasMargin,isTextBold,isTextLarger,globalShape,allEdgesStraight,
+            const proj={version:'0.3.0',text:document.getElementById('inputText').value,theme:currentTheme,fontSize:currentFontSize,edgeWidth:currentEdgeWidth,canvasMargin,isTextBold,isTextLarger,globalShape,allEdgesStraight,
                 nodeShapes:JSON.parse(JSON.stringify(nodeShapes)),nodeScales:JSON.parse(JSON.stringify(nodeScales)),nodeColors:JSON.parse(JSON.stringify(nodeColors)),
                 nodes:nodesDataSet.get().map(n=>{const p=pos[n.id]||{x:0,y:0};return{id:n.id,x:p.x,y:p.y};}),
-                edges:edgesDataSet.get().map(e=>({id:e.id,from:e.from,to:e.to,label:e.rawLabel||null,bidirectional:!!(e.arrows&&e.arrows.from&&e.arrows.from.enabled),straight:e.smooth===false}))};
+                edges:edgesDataSet.get().map(e=>({
+                    id:e.id,from:e.from,to:e.to,label:e.rawLabel||null, bidirectional:!!(e.arrows&&e.arrows.from&&e.arrows.from.enabled),
+                    straight:e.smooth===false, modType: e.id.includes('||modC') ? 'modC' : null
+                }))};
             const blob=new Blob([JSON.stringify(proj,null,2)],{type:'application/json'});const a=document.createElement('a');a.download='변인_모형_프로젝트.json';a.href=URL.createObjectURL(blob);document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(a.href);}
+        
         function loadProject(ev){const f=ev.target.files[0];if(!f)return;const r=new FileReader();
             r.onload=function(e){try{const p=JSON.parse(e.target.result);
                 if(p.text!==undefined)document.getElementById('inputText').value=p.text;if(p.theme&&THEMES[p.theme])setTheme(p.theme);
@@ -449,11 +662,22 @@
                 if(p.isTextBold!==undefined){isTextBold=p.isTextBold;document.getElementById('btn-bold').classList.toggle('toggle-active',isTextBold);}
                 if(p.isTextLarger!==undefined){isTextLarger=p.isTextLarger;document.getElementById('btn-large').classList.toggle('toggle-active',isTextLarger);}
                 if(p.globalShape){globalShape=p.globalShape;document.querySelectorAll('.shape-bar button').forEach(b=>b.classList.remove('active'));document.getElementById('gshape-'+{box:'box',roundedBox:'round',ellipse:'ellipse'}[globalShape]).classList.add('active');}
-                if(p.allEdgesStraight!==undefined){allEdgesStraight=p.allEdgesStraight;document.getElementById('btn-line-toggle').classList.toggle('toggle-active',allEdgesStraight);}
+                
+                if(p.allEdgesStraight!==undefined){
+                    allEdgesStraight=p.allEdgesStraight;
+                    document.getElementById('btn-all-curve')?.classList.toggle('toggle-active', !allEdgesStraight);
+                    document.getElementById('btn-all-straight')?.classList.toggle('toggle-active', allEdgesStraight);
+                }
+                
                 if(p.nodeShapes)nodeShapes=p.nodeShapes;if(p.nodeScales)nodeScales=p.nodeScales;if(p.nodeColors)nodeColors=p.nodeColors||{};
                 nodesDataSet.clear();edgesDataSet.clear();
                 if(p.nodes)nodesDataSet.add(p.nodes.map(n=>{const o=createNodeObj(n.id);o.x=n.x;o.y=n.y;return o;}));
-                if(p.edges)edgesDataSet.add(p.edges.map(e=>{const o=createEdgeObj(e.from,e.to,e.bidirectional);if(e.label){o.rawLabel=e.label;o.label=' ';o.font={size:1,color:'rgba(0,0,0,0)'};}if(e.straight)o.smooth=false;return o;}));
+                if(p.edges)edgesDataSet.add(p.edges.map(e=>{
+                    const o=createEdgeObj(e.from,e.to,e.bidirectional,e.modType);
+                    if(e.label){o.rawLabel=e.label;o.label=' ';o.font={size:1,color:'rgba(0,0,0,0)'};}
+                    if(e.straight)o.smooth=false;
+                    return o;
+                }));
                 centerNetwork();saveState();}catch(err){alert('파일을 불러올 수 없습니다.');console.error(err);}};r.readAsText(f);ev.target.value='';}
 
         document.addEventListener('click',e=>{const em=document.getElementById('edge-modal'),nm=document.getElementById('node-modal');
